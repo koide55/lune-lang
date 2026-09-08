@@ -652,6 +652,12 @@ function applySharedState() {
   if (!state || typeof state.c !== "string") return false;
   setCode(state.c);
   $("binding").value = state.b ?? "";
+  // A binding in the link is the sharer's choice, so stop the field following
+  // the code — otherwise syncBinding replaces it with the last declaration as
+  // soon as the interpreter finishes loading. An empty one means "you decide",
+  // which is what the book's links send: the real parser picks better than a
+  // link generator could.
+  if (state.b) bindingTouched = true;
   $("trace").checked = Boolean(state.t);
   if (state.l === "en" || state.l === "ja") $("lang").value = state.l;
   return true;
@@ -672,6 +678,13 @@ async function main() {
   if (applySharedState()) $("preset").value = "";
   else { loadPreset("basics"); $("preset").value = "basics"; }
   $("preset").addEventListener("change", (e) => loadPreset(e.target.value));
+
+  // Pasting a share link into a tab that already holds the Playground only
+  // changes the fragment: the browser does not reload, so nothing would
+  // happen. (The 共有 button uses replaceState, which fires no hashchange.)
+  window.addEventListener("hashchange", () => {
+    if (applySharedState()) { $("preset").value = ""; setStatus("共有リンクを読み込みました"); }
+  });
 
   $("btn-new").onclick = () => {
     // Cmd/Ctrl+N is taken by the browser ("new window") and cannot be
