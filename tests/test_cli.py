@@ -11,7 +11,7 @@ from pathlib import Path
 from lune import __version__
 from lune.cli import main
 from lune.messages import set_language
-from lune.repl import ReplSession
+from lune.repl import ReplSession, repl_main
 
 ROOT = Path(__file__).resolve().parent.parent
 
@@ -62,6 +62,35 @@ class VersionTests(unittest.TestCase):
         # pyproject.toml reads the version from lune/__init__.py through
         # hatchling, so this string is what ends up in the wheel metadata.
         self.assertRegex(__version__, r"^\d+\.\d+\.\d+([ab]\d+|rc\d+)?$")
+
+    def test_every_cli_flag_is_in_the_reference(self) -> None:
+        """Appendix D is the CLI reference; a flag missing from it is invisible.
+
+        `--version` shipped without a line anywhere in the book, the README or
+        the spec, which is what this pins down.
+        """
+        source = (ROOT / "lune" / "cli.py").read_text(encoding="utf-8")
+        flags = set(re.findall(r'add_argument\("(--[\w-]+)"', source))
+        reference = (ROOT / "books" / "lune-book" / "src" / "appendix-d-cli.md").read_text(encoding="utf-8")
+        for flag in sorted(flags):
+            with self.subTest(flag=flag):
+                self.assertIn(flag, reference)
+
+    def test_the_book_prints_the_real_repl_banner(self) -> None:
+        """The banner carries the version, so a release silently dates the book.
+
+        The transcripts are hand-copied from a real session (books/README.md),
+        and nothing else re-checks them.
+        """
+        out = io.StringIO()
+        repl_main(io.StringIO(":quit\n"), out, io.StringIO())
+        banner = out.getvalue().splitlines()[0]
+        self.assertIn(__version__, banner)  # the point of the check
+
+        src = ROOT / "books" / "lune-book" / "src"
+        for page in ("00-preface.md", "01-tour.md"):
+            with self.subTest(page=page):
+                self.assertIn(banner, (src / page).read_text(encoding="utf-8"))
 
     def test_pyproject_reads_the_version_from_the_package(self) -> None:
         # Guards against someone putting a literal `version = "..."` back into

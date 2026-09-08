@@ -63,7 +63,7 @@ error[TYP0001]: 未定義の名前: cont
 
 ```console
 $ lune
-Lune v0.1 REPL. Type :help or :quit.
+Lune v0.1.0 REPL. Type :help or :quit.
 lune>
 ```
 

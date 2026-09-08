@@ -137,6 +137,7 @@ cd lune-lang
 ./bin/lune explain TYP0007 --lang ja       # 診断コードの詳解
 ./bin/lune fmt --write file.lune           # 整形
 ./bin/lune fix --write file.lune           # typo の自動修正
+./bin/lune --version                       # 版番号(バグ報告に添えてください)
 ```
 
 書き味の見本は [samples/](samples/) にあります(ADT・match・レコード・パイプライン `|>`・nullable・無限ストリームなど)。
