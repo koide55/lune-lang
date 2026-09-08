@@ -114,6 +114,8 @@ nat : evaluated = Cons(1, <thunk>)   # 先頭だけ計算済み。続きは手�
 
 「新規」で白紙から始められるし、手元の `.lune` ファイルは「開く」(`Ctrl/Cmd+O`、エディタへのドラッグ&ドロップでも可)で読み込める。書いたコードは「保存」(`Ctrl/Cmd+S`)で持ち帰れて、そのまま `./bin/lune` に食わせられる。
 
+**`import` で分けたプログラムもそのまま動く。** エディタの上のファイルタブで `main.lune` の隣にモジュールを足せる(`math` でも `util.text` でも)。手元でファイルを並べたときとまったく同じ解決規則で、実行も型チェックもプログラム全体が対象になる。
+
 ## 資料棚 — ドキュメント
 
 - **[教科書『プログラミング言語 Lune』](https://koide55.github.io/lune-lang/book/)** — 序章+全13章+付録A〜E。腰を据えて体系的に学ぶならこちら。演習には解答付き。[1冊にまとめた PDF](https://koide55.github.io/lune-lang/book/lune-book.pdf)(A4・167ページ、しおり付き)もあります([原稿は books/](books/README.md))

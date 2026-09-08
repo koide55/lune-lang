@@ -47,6 +47,14 @@
   #output .tv { color: var(--dim); }
   #output a.diag { color: inherit; text-decoration: underline dotted; cursor: pointer; }
   label { font-size: 12px; color: var(--dim); }
+  /* file tabs: main.lune plus the modules it imports */
+  .files { gap: 4px; margin-bottom: -4px; }
+  button.file { border-radius: 6px 6px 0 0; border-bottom-color: transparent;
+    color: var(--dim); padding: 5px 10px; font-family: ui-monospace, monospace; font-size: 12px; }
+  button.file.active { color: var(--fg); border-color: var(--accent); }
+  button.file .close { color: var(--dim); margin-left: 6px; font-family: sans-serif; }
+  button.file .close:hover { color: var(--err); }
+  #btn-add-module { padding: 5px 10px; font-size: 12px; }
   /* right-column tabs: 出力 / REPL */
   .tabs { gap: 4px; }
   .tabfill { flex: 1; }
@@ -113,6 +121,7 @@
         <option value="exhaustive">網羅性エラー(TYP0007)</option>
         <option value="typo">typo と自動修正(TYP0001)</option>
         <option value="stream">無限ストリーム(トレースで観察)</option>
+        <option value="modules">import で分ける(2ファイル)</option>
       </select>
       <label>評価する束縛:</label>
       <input type="text" id="binding" value="main">
@@ -123,6 +132,7 @@
         <option value="en">English</option>
       </select>
     </div>
+    <div class="toolbar files" id="filebar"></div>
     <textarea id="editor" spellcheck="false"></textarea>
     <div class="toolbar">
       <button class="primary" id="btn-run" disabled>▶ 実行</button>
@@ -199,6 +209,26 @@ let evens = filter(nat, fn x: Int -> x % 2 == 0)
 let firstThree = take(evens, 3)
 `,
   },
+  modules: {
+    binding: "answer",
+    code: `module main
+
+import geometry
+
+let answer = area(3.0, 4.0)
+`,
+    // Extra files are keyed by the import path, exactly as the tabs are.
+    modules: [
+      {
+        name: "geometry",
+        code: `module geometry
+
+def area(width: Double, height: Double): Double =
+    width * height
+`,
+      },
+    ],
+  },
 };
 
 const LUNE_FILES = ["__init__.py","cli.py","diagnostics.py","evaluator.py",
@@ -207,7 +237,7 @@ const LUNE_FILES = ["__init__.py","cli.py","diagnostics.py","evaluator.py",
   "tokens.py","typechecker.py"];
 
 const DRIVER = `
-import io, json, sys, contextlib
+import io, json, os, sys, contextlib
 sys.path.insert(0, "/app")
 
 from lune.diagnostics import SourceMap, format_diagnostic, format_exception
@@ -244,13 +274,37 @@ def lune_bindings(source):
             names.append(decl.name)
     return json.dumps(names)
 
-def _write(source):
+# Files written for the last run, so that a module the user deleted really
+# disappears. A stale /app/math.lune would go on resolving \`import math\`, and
+# the program would keep working here but not anywhere else.
+_WRITTEN = set()
+
+def _module_file(name):
+    # \`import util.text\` resolves to util/text.lune, relative to the entry's
+    # directory (module_loader._search_roots), which is what /app is.
+    return "/app/" + name.replace(".", "/") + ".lune"
+
+def _write(source, modules="[]"):
+    global _WRITTEN
+    written = {ENTRY}
     with open(ENTRY, "w", encoding="utf-8") as f:
         f.write(source)
+    for module in json.loads(modules):
+        path = _module_file(module["n"])
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        with open(path, "w", encoding="utf-8") as f:
+            f.write(module["c"])
+        written.add(path)
+    for stale in _WRITTEN - written:
+        try:
+            os.remove(stale)
+        except OSError:
+            pass
+    _WRITTEN = written
 
-def lune_check(source, lang="en"):
+def lune_check(source, lang="en", modules="[]"):
     set_language(lang)
-    _write(source)
+    _write(source, modules)
     sm = SourceMap()
     out = io.StringIO()
     try:
@@ -262,9 +316,9 @@ def lune_check(source, lang="en"):
         out.write(format_exception(exc, sm, explain_hint=True) + "\\n")
     return out.getvalue()
 
-def lune_run(source, binding, trace=False, lang="en"):
+def lune_run(source, binding, trace=False, lang="en", modules="[]"):
     set_language(lang)
-    _write(source)
+    _write(source, modules)
     sm = SourceMap()
     out = io.StringIO()
     try:
@@ -403,6 +457,98 @@ function initEditor() {
 function getCode() { return cm ? cm.getValue() : $("editor").value; }
 function setCode(text) { cm ? cm.setValue(text) : ($("editor").value = text); }
 
+// --- files: main.lune, plus the modules it imports ------------------------------
+//
+// The editor shows one file at a time; the others are parked here. `name` is
+// the import path as written in the program (`math`, `util.text`), and the
+// entry's name is "" — it is always main.lune, is never renamed, and is the
+// one that gets evaluated. The interpreter needs no help beyond the files
+// themselves: module resolution searches the entry's own directory, so
+// writing them side by side in /app is all `import` requires.
+let files = [{ name: "", code: "" }];
+let active = 0;
+
+const fileLabel = (name) => (name === "" ? "main.lune" : name.replace(/\./g, "/") + ".lune");
+const MODULE_NAME = /^[A-Za-z_][A-Za-z0-9_]*(\.[A-Za-z_][A-Za-z0-9_]*)*$/;
+
+// Always read through to the editor for the active file: no syncing on every
+// keystroke, and no way for the two to disagree.
+function entryCode() { return active === 0 ? getCode() : files[0].code; }
+function codeOf(i) { return i === active ? getCode() : files[i].code; }
+function modulesJson() {
+  return JSON.stringify(files.slice(1).map((f, i) => ({ n: f.name, c: codeOf(i + 1) })));
+}
+
+function renderFileBar() {
+  const bar = $("filebar");
+  bar.textContent = "";
+  files.forEach((file, i) => {
+    const tab = document.createElement("button");
+    tab.className = "file" + (i === active ? " active" : "");
+    tab.append(fileLabel(file.name));
+    tab.onclick = () => switchFile(i);
+    if (i > 0) {
+      const close = document.createElement("span");
+      close.className = "close";
+      close.textContent = "×";
+      close.title = `${fileLabel(file.name)} を削除`;
+      close.onclick = (e) => { e.stopPropagation(); removeModule(i); };
+      tab.append(close);
+    }
+    bar.append(tab);
+  });
+  const add = document.createElement("button");
+  add.id = "btn-add-module";
+  add.textContent = "＋ モジュール";
+  add.title = "import で読み込むモジュールを追加する";
+  add.onclick = addModule;
+  bar.append(add);
+}
+
+function switchFile(i) {
+  if (i === active) return;
+  files[active].code = getCode();
+  active = i;
+  setCode(files[active].code);
+  clearErrorLine();
+  renderFileBar();
+}
+
+function addModule() {
+  const name = (prompt("モジュール名 (import に書く名前。例: math, util.text)") || "").trim();
+  if (!name) return;
+  if (!MODULE_NAME.test(name)) { setStatus(`モジュール名として使えません: ${name}`); return; }
+  if (files.some((f) => f.name === name)) { setStatus(`${fileLabel(name)} は既にあります`); return; }
+  files[active].code = getCode();
+  files.push({ name, code: `module ${name}\n\n` });
+  active = files.length - 1;
+  setCode(files[active].code);
+  clearErrorLine();
+  renderFileBar();
+  setStatus(`${fileLabel(name)} を追加しました — main.lune に \`import ${name}\` を書くと使えます`);
+}
+
+function removeModule(i) {
+  if (i === 0) return;
+  if (!confirm(`${fileLabel(files[i].name)} を削除しますか?`)) return;
+  files.splice(i, 1);
+  if (active >= files.length) active = files.length - 1;
+  else if (active > i) active -= 1;
+  else if (active === i) active = 0;
+  setCode(files[active].code);
+  clearErrorLine();
+  renderFileBar();
+}
+
+// Replace every buffer at once (a preset, a share link, 新規).
+function setFiles(list) {
+  files = list.length ? list.map((f) => ({ name: f.name || "", code: f.code || "" })) : [{ name: "", code: "" }];
+  active = 0;
+  setCode(files[0].code);
+  clearErrorLine();
+  renderFileBar();
+}
+
 let errorLine = null;
 function clearErrorLine() {
   if (cm && errorLine !== null) cm.removeLineClass(errorLine, "background", "cm-error-line");
@@ -411,9 +557,11 @@ function clearErrorLine() {
 function markErrorLineFrom(text) {
   clearErrorLine();
   if (!cm) return;
-  const m = text.match(/main\.lune:(\d+):\d+/);
-  if (!m) return;
-  errorLine = Number(m[1]) - 1;
+  // With modules the error may be in a file that is not on screen; highlighting
+  // that line number in whatever happens to be open would point at innocent code.
+  const m = text.match(/([\w/.-]+\.lune):(\d+):\d+/);
+  if (!m || m[1].replace(/^\/app\//, "") !== fileLabel(files[active].name)) return;
+  errorLine = Number(m[2]) - 1;
   cm.addLineClass(errorLine, "background", "cm-error-line");
 }
 
@@ -530,7 +678,7 @@ let bindingTouched = false;
 
 function syncBinding(call) {
   if (bindingTouched) return;
-  const names = JSON.parse(call("lune_bindings", getCode()));
+  const names = JSON.parse(call("lune_bindings", entryCode()));
   if (!names || !names.length) return;   // unparseable or nothing declared yet
   $("binding").value = names[names.length - 1];
 }
@@ -608,18 +756,19 @@ async function openFromFile() {
 
 function loadPreset(name) {
   if (!name) return;                    // the "(なし)" entry is not a sample
-  setCode(PRESETS[name].code);
+  const preset = PRESETS[name];
+  setFiles([{ name: "", code: preset.code }, ...(preset.modules || [])]);
   bindingTouched = false;               // the sample's own binding, not the user's
-  $("binding").value = PRESETS[name].binding;
-  $("trace").checked = Boolean(PRESETS[name].trace);
-  clearErrorLine();
+  $("binding").value = preset.binding;
+  $("trace").checked = Boolean(preset.trace);
 }
 
 // Start from an empty buffer. There is only one buffer here, so this discards
 // what is in the editor — hence the confirmation when it holds anything.
 function newFile() {
-  if (getCode().trim() && !confirm("エディタの内容を消して新規作成しますか?")) return false;
-  setCode("");
+  const anything = files.some((f, i) => codeOf(i).trim());
+  if (anything && !confirm("エディタの内容を消して新規作成しますか?")) return false;
+  setFiles([{ name: "", code: "" }]);
   // `main` as a hint of the convention on a blank slate; it gets replaced by
   // the real binding as soon as one is declared.
   bindingTouched = false;
@@ -631,7 +780,10 @@ function newFile() {
 }
 
 function encodeState() {
-  const state = { c: getCode(), b: $("binding").value, t: $("trace").checked, l: $("lang").value };
+  const state = { c: entryCode(), b: $("binding").value, t: $("trace").checked, l: $("lang").value };
+  // `m` only when there is something to carry: a single-file link stays exactly
+  // as short as it was, and the book's generated links keep working unchanged.
+  if (files.length > 1) state.m = JSON.parse(modulesJson());
   const utf8 = unescape(encodeURIComponent(JSON.stringify(state)));
   return btoa(utf8).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
 }
@@ -650,14 +802,17 @@ function applySharedState() {
   if (!m) return false;
   const state = decodeState(m[1]);
   if (!state || typeof state.c !== "string") return false;
-  setCode(state.c);
+  const modules = Array.isArray(state.m) ? state.m : [];
+  setFiles([{ name: "", code: state.c }, ...modules.map((m) => ({ name: m.n, code: m.c }))]);
   $("binding").value = state.b ?? "";
   // A binding in the link is the sharer's choice, so stop the field following
   // the code — otherwise syncBinding replaces it with the last declaration as
   // soon as the interpreter finishes loading. An empty one means "you decide",
   // which is what the book's links send: the real parser picks better than a
   // link generator could.
-  if (state.b) bindingTouched = true;
+  // Assigned, not just set: a second link applied through hashchange must not
+  // inherit "the user chose this" from the link before it.
+  bindingTouched = Boolean(state.b);
   $("trace").checked = Boolean(state.t);
   if (state.l === "en" || state.l === "ja") $("lang").value = state.l;
   return true;
@@ -710,7 +865,10 @@ async function main() {
   $("btn-open").disabled = false;
 
   $("btn-save").onclick = async () => {
-    const name = await saveToFile(withTrailingNewline(getCode()), "main.lune");
+    // The file on screen, under the name the program refers to it by — so a
+    // saved module lands next to main.lune and `import` still resolves.
+    const suggested = fileLabel(files[active].name).replace(/^.*\//, "");
+    const name = await saveToFile(withTrailingNewline(getCode()), suggested);
     setStatus(name ? `${name} を保存しました` : "保存をキャンセルしました");
   };
   $("btn-save").disabled = false;
@@ -782,13 +940,15 @@ async function main() {
   else $("editor").addEventListener("input", scheduleBindingSync);
   syncBinding(call);                    // catch up with whatever loaded first
 
+  // Run and check always mean the whole program: main.lune is the entry even
+  // when a module tab is the one on screen.
   $("btn-run").onclick = () => timed("実行", async () => {
-    const text = call("lune_run", getCode(), $("binding").value, $("trace").checked, $("lang").value);
+    const text = call("lune_run", entryCode(), $("binding").value, $("trace").checked, $("lang").value, modulesJson());
     render(text);
     markErrorLineFrom(text);
   });
   $("btn-check").onclick = () => timed("型チェック", async () => {
-    const text = call("lune_check", getCode(), $("lang").value);
+    const text = call("lune_check", entryCode(), $("lang").value, modulesJson());
     render(text);
     markErrorLineFrom(text);
   });
@@ -848,6 +1008,12 @@ async function main() {
     if (!source.trim()) return;
     replEcho("lune>", "(エディタの内容)");
     replSubmit(call, lang(), source);
+    // The REPL accepts an `import` line and answers `ok`, but does not load the
+    // module — the names simply are not there. Say so rather than let someone
+    // hunt for why a function is undefined. (Run/型チェック do resolve modules.)
+    if (/^\s*import\s/m.test(source)) {
+      replAppend(`<span class="h">(注: REPL は import を解決しません。モジュールの名前は入りません — 実行・型チェックでは読み込まれます)</span>\n`);
+    }
   });
   // the session was built with the language selected at load time
   $("lang").addEventListener("change", () => replReset(call, lang()));

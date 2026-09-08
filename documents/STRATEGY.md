@@ -11,7 +11,7 @@ Related: `LANGUAGE_SPEC.md`, `LANGUAGE_FUTURE_SPEC.md`, `ERROR_DIAGNOSTICS_SPEC.
 
 | 施策 | 状態 | 残り |
 | --- | --- | --- |
-| A ブラウザ Playground | ほぼ完了 | `import` を含むプログラムの実行、チュートリアル (`TUTORIAL.md`) からの導線 |
+| A ブラウザ Playground | ほぼ完了 | チュートリアル (`TUTORIAL.md`) からの導線 |
 | B 診断の日本語化 | **完了** | — |
 | C エラー駆動学習への再編 | **完了** | — |
 | D 研究発信 | 継続 | 唯一「実装ではなく外部活動」の施策。個別の進行はこの文書では扱わない |
@@ -69,7 +69,9 @@ Lune は直近10年の PL 研究・言語 UX 研究の成果を小さな言語�
 
 技術検証 PoC は `playground/` にある (検証結果は `playground/README.md`)。GitHub Pages での公開も実装済み: `.github/workflows/pages.yml` が main への push でリポジトリ全体をデプロイし、ランディングページ (`index.html`)・Playground・診断カタログ (`playground/errors.html`)・教科書 (`book/`、HTML と PDF。2026-09-08 に追加) が 1 つの URL 配下で公開される。
 
-「URL 一つで REPL が動く」という本項の目標は 2026-07-26 に達成した。Playground の右カラムに REPL タブがあり、端末と同じ `lune.repl.ReplSession` を駆動する (セッション保持・全 `:` コマンド・複数行入力・履歴・エディタからの読み込み)。残るのはモジュール (`import`) を含むプログラムの実行と、教材 (チュートリアル・教科書) からの「Playground で開く」導線。前者は Playground が単一ファイル (`/app/main.lune`) を書いて `check_file(ENTRY, [], sm)` を呼ぶ作りで、モジュール探索パスが空であることによる。
+「URL 一つで REPL が動く」という本項の目標は 2026-07-26 に達成した。Playground の右カラムに REPL タブがあり、端末と同じ `lune.repl.ReplSession` を駆動する (セッション保持・全 `:` コマンド・複数行入力・履歴・エディタからの読み込み)。
+
+2026-09-08 に残件を片付けて本項は完了とする。教材 (チュートリアル・教科書) からの「Playground で開く」導線が付き、モジュール (`import`) を含むプログラムもファイルタブで動くようになった。後者に処理系側の変更は要らなかった — モジュール解決は入口ファイルのディレクトリを探索するので、Pyodide FS の `/app` に並べて書くだけで済む。残っているのは REPL 側の `import` 解決だけで、これは Playground ではなく `ReplSession` の制限である。
 
 ### B. 診断メッセージの日本語化 (差別化の核)
 
