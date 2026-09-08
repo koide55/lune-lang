@@ -72,6 +72,8 @@ let danger = crash()
 let answer = 42
 ```
 
+[▶ Playground で開く](https://koide55.github.io/lune-lang/playground/#s=eyJjIjoibGV0IGRhbmdlciA9IGNyYXNoKClcbmxldCBhbnN3ZXIgPSA0MlxuIiwiYiI6IiIsInQiOmZhbHNlLCJsIjoiamEifQ)
+
 `answer` を評価しても `danger` は使われないので、`crash()` は評価されません。
 
 ```sh
@@ -97,6 +99,8 @@ def first(a: Int, b: Int): Int =
 let answer = first(10, crash())
 ```
 
+[▶ Playground で開く](https://koide55.github.io/lune-lang/playground/#s=eyJjIjoiZGVmIGZpcnN0KGE6IEludCwgYjogSW50KTogSW50ID1cbiAgICBhXG5cbmxldCBhbnN3ZXIgPSBmaXJzdCgxMCwgY3Jhc2goKSlcbiIsImIiOiIiLCJ0IjpmYWxzZSwibCI6ImphIn0)
+
 `first` は `b` を使わないので、`crash()` は評価されません。
 
 ```text
@@ -115,6 +119,8 @@ def ignore(a: Int, !b: Int): Int =
 
 let answer = ignore(10, crash())
 ```
+
+[▶ Playground で開く](https://koide55.github.io/lune-lang/playground/#s=eyJjIjoiZGVmIGlnbm9yZShhOiBJbnQsICFiOiBJbnQpOiBJbnQgPVxuICAgIGFcblxubGV0IGFuc3dlciA9IGlnbm9yZSgxMCwgY3Jhc2goKSlcbiIsImIiOiIiLCJ0IjpmYWxzZSwibCI6ImphIn0)
 
 この場合、`b` は正格引数なので、関数呼び出し時に `crash()` が評価されます。
 
@@ -147,6 +153,8 @@ let delayed = lazy:
 let answer = force delayed
 ```
 
+[▶ Playground で開く](https://koide55.github.io/lune-lang/playground/#s=eyJjIjoibGV0IGRlbGF5ZWQgPSBsYXp5OlxuICAgIGxldCB4ID0gNDBcbiAgICB4ICsgMlxuXG5sZXQgYW5zd2VyID0gZm9yY2UgZGVsYXllZFxuIiwiYiI6IiIsInQiOmZhbHNlLCJsIjoiamEifQ)
+
 `lazy` は「あとで開ける箱」のようなものです。`force` すると中身が計算されます。
 
 ## 6. メモ化されるサンク
@@ -165,6 +173,10 @@ let x = tick()
 let answer = x + x
 let count = tickCount()
 ```
+
+[▶ Playground で開く](https://koide55.github.io/lune-lang/playground/#s=eyJjIjoibGV0IHggPSB0aWNrKClcbmxldCBhbnN3ZXIgPSB4ICsgeFxubGV0IGNvdW50ID0gdGlja0NvdW50KClcbiIsImIiOiIiLCJ0IjpmYWxzZSwibCI6ImphIn0)
+
+> Playground で開いたときは、**「評価する束縛」を先に `answer` にしてください**。`count` から評価すると `0` のままです — `answer` を評価して初めて `tick()` が走るからで、これ自体がこの節の遅延評価の実演になっています。
 
 `x` は 2 回使われていますが、`tick()` は 1 回だけ実行されます。
 
