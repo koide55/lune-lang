@@ -9,6 +9,16 @@
 - `TUTORIAL.md`: Lune v0.1 を楽しく学ぶためのチュートリアル。
 - `TUTORIAL_EN.md`: チュートリアルの英語版。
 
+チュートリアルの遅延評価の節（第2〜6章）には「Playground で開く」リンクがある。リンクは
+**コードそのものを URL に畳み込んだもの**なので、上のコード例を直したらリンクも作り直す:
+
+```sh
+tools/playground_links.py write documents/TUTORIAL.md documents/TUTORIAL_EN.md
+```
+
+作り直し忘れはテスト（`tests/test_tutorial.py`）が落ちて教えてくれる。教科書側は
+ブラウザで生成するので、この手当ては要らない（`books/lune-book/theme/playground.js`）。
+
 ## 方針・調査
 
 - `STRATEGY.md`: 普及戦略。「コンパイラが教える」路線の位置づけと施策の優先順位。

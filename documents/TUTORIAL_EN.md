@@ -72,6 +72,8 @@ let danger = crash()
 let answer = 42
 ```
 
+[▶ Open in the Playground](https://koide55.github.io/lune-lang/playground/#s=eyJjIjoibGV0IGRhbmdlciA9IGNyYXNoKClcbmxldCBhbnN3ZXIgPSA0MlxuIiwiYiI6IiIsInQiOmZhbHNlLCJsIjoiZW4ifQ)
+
 Evaluating `answer` never uses `danger`, so `crash()` is never evaluated.
 
 ```sh
@@ -97,6 +99,8 @@ def first(a: Int, b: Int): Int =
 let answer = first(10, crash())
 ```
 
+[▶ Open in the Playground](https://koide55.github.io/lune-lang/playground/#s=eyJjIjoiZGVmIGZpcnN0KGE6IEludCwgYjogSW50KTogSW50ID1cbiAgICBhXG5cbmxldCBhbnN3ZXIgPSBmaXJzdCgxMCwgY3Jhc2goKSlcbiIsImIiOiIiLCJ0IjpmYWxzZSwibCI6ImVuIn0)
+
 Since `first` never uses `b`, `crash()` is never evaluated.
 
 ```text
@@ -115,6 +119,8 @@ def ignore(a: Int, !b: Int): Int =
 
 let answer = ignore(10, crash())
 ```
+
+[▶ Open in the Playground](https://koide55.github.io/lune-lang/playground/#s=eyJjIjoiZGVmIGlnbm9yZShhOiBJbnQsICFiOiBJbnQpOiBJbnQgPVxuICAgIGFcblxubGV0IGFuc3dlciA9IGlnbm9yZSgxMCwgY3Jhc2goKSlcbiIsImIiOiIiLCJ0IjpmYWxzZSwibCI6ImVuIn0)
 
 Here, `b` is a strict argument, so `crash()` is evaluated at the call site.
 
@@ -147,6 +153,8 @@ let delayed = lazy:
 let answer = force delayed
 ```
 
+[▶ Open in the Playground](https://koide55.github.io/lune-lang/playground/#s=eyJjIjoibGV0IGRlbGF5ZWQgPSBsYXp5OlxuICAgIGxldCB4ID0gNDBcbiAgICB4ICsgMlxuXG5sZXQgYW5zd2VyID0gZm9yY2UgZGVsYXllZFxuIiwiYiI6IiIsInQiOmZhbHNlLCJsIjoiZW4ifQ)
+
 Think of `lazy` as a box you open later. `force` computes the contents.
 
 ## 6. Memoized Thunks
@@ -165,6 +173,10 @@ let x = tick()
 let answer = x + x
 let count = tickCount()
 ```
+
+[▶ Open in the Playground](https://koide55.github.io/lune-lang/playground/#s=eyJjIjoibGV0IHggPSB0aWNrKClcbmxldCBhbnN3ZXIgPSB4ICsgeFxubGV0IGNvdW50ID0gdGlja0NvdW50KClcbiIsImIiOiIiLCJ0IjpmYWxzZSwibCI6ImVuIn0)
+
+> In the Playground, **set the binding to evaluate to `answer` first**. Evaluating `count` first shows `0`: `tick()` does not run until `answer` is forced — which is the lazy evaluation this section is about.
 
 Although `x` is used twice, `tick()` executes only once.
 
