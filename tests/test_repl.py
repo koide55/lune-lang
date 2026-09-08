@@ -7,6 +7,7 @@ import unittest
 from contextlib import redirect_stderr, redirect_stdout
 from unittest import mock
 
+from lune import __version__
 from lune.cli import main
 from lune.diagnostics import SourceMap, format_diagnostic, format_exception
 from lune.messages import set_language
@@ -266,7 +267,7 @@ class CliReplFallbackTests(unittest.TestCase):
     def test_no_args_starts_repl(self) -> None:
         code, out, err = self._run_main([], "1 + 2\n:q\n")
         self.assertEqual(code, 0)
-        self.assertIn("Lune v0.1 REPL", out)
+        self.assertIn(f"Lune v{__version__} REPL", out)
         self.assertIn("3 : Int", out)
         self.assertEqual(err, "")
 

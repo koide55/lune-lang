@@ -5,6 +5,7 @@ import os
 import pprint
 import sys
 
+from . import __version__
 from .diagnostics import SourceMap, format_diagnostic, format_exception
 from .evaluator import force_value, format_value, set_trace_hook
 from .explanations import LANGUAGES, available_codes, render_error_index, render_explanation
@@ -205,6 +206,12 @@ def main(argv: list[str] | None = None) -> int:
         set_language(lang)
     if not argv:
         return repl_main(sys.stdin, sys.stdout, sys.stderr)
+    # Handled before argparse so it works without a file argument and returns
+    # normally (argparse's own `version` action calls sys.exit, which the tests
+    # and the playground cannot catch).
+    if argv[0] in ("--version", "-V"):
+        print(f"lune {__version__}")
+        return 0
     if argv and argv[0] == "explain":
         return explain_command(argv[1:])
     if argv and argv[0] == "fmt":
@@ -212,8 +219,10 @@ def main(argv: list[str] | None = None) -> int:
     if argv and argv[0] == "fix":
         return fix_command(argv[1:])
 
-    parser = argparse.ArgumentParser(prog="lune-v0.1")
+    parser = argparse.ArgumentParser(prog="lune")
     parser.add_argument("file", nargs="?")
+    # Listed here only so `--help` mentions it; the real handling is above.
+    parser.add_argument("--version", "-V", action="version", version=f"lune {__version__}")
     parser.add_argument("--repl", action="store_true", help="start an interactive REPL")
     parser.add_argument("--tokens", action="store_true", help="print layout-processed tokens")
     parser.add_argument("--check", action="store_true", help="type-check the file")
