@@ -106,6 +106,15 @@ class MessageCatalogTests(unittest.TestCase):
             session.submit("let x: Int = true")
         self.assertIn("が必要ですが", ctx.exception.diagnostic.message)
 
+    def test_japanese_runtime_operand_error(self) -> None:
+        from lune.evaluator import LuneRuntimeError, eval_source, force_value
+
+        set_language("ja")
+        with self.assertRaises(LuneRuntimeError) as ctx:
+            force_value(eval_source('let r = "a" - 1\n').lookup_raw("r"))
+        self.assertEqual(ctx.exception.diagnostic.message, "`-` の被演算子は Int か Double でなければなりませんが、String と Int でした")
+        self.assertEqual(ctx.exception.diagnostic.hints, ["`lune --check` なら実行前にこの誤りを報告します（`--eval` は型検査を飛ばします）"])
+
     def test_japanese_caret_labels(self) -> None:
         """The label under the source caret must follow the active language."""
         set_language("ja")

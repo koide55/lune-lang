@@ -831,5 +831,148 @@ let b = User(name = "Ada", age = 36) == User(name = "Ada", age = 37)
         self.assertIs(self.value_of("let f = fn x -> x\nlet g = fn x -> x\nlet r = f == g\n", "r"), False)
 
 
+class OperandTypeTests(unittest.TestCase):
+    """Operators check their operand types at run time (issue #94).
+
+    `lune --eval` runs without the type checker, so ill-typed code reaches the
+    evaluator. Before these checks, Python's operators supplied the semantics:
+    some cases leaked a raw Python exception, others silently returned a value
+    that no Lune rule defines (`"%d" % 5` formatted a string, `true + true`
+    was 2, `if 1 then ...` took the then-branch).
+    """
+
+    def value_of(self, source: str, name: str = "r"):
+        env = eval_source(source)
+        return force_value(env.lookup_raw(name))
+
+    def assert_run0006(self, expression: str, *fragments: str) -> None:
+        with self.assertRaises(LuneRuntimeError) as ctx:
+            self.value_of(f"let r = {expression}\n")
+        diagnostic = ctx.exception.diagnostic
+        self.assertEqual(diagnostic.code, "RUN0006")
+        for fragment in fragments:
+            self.assertIn(fragment, diagnostic.message)
+        self.assertTrue(any("lune --check" in hint for hint in diagnostic.hints), diagnostic.hints)
+
+    def test_cases_that_used_to_leak_python_exceptions(self) -> None:
+        cases = {
+            '-"a"': ("unary `-`", "got String"),
+            '+"a"': ("unary `+`", "got String"),
+            '"a" - 1': ("`-`", "String and Int"),
+            '"a" / 2': ("`/`", "String and Int"),
+            '"a" // 2': ("`//`", "String and Int"),
+            '"a" % 2': ("`%`", "String and Int"),
+            '1 < "a"': ("`<`", "Int and String"),
+            '"a" + 1': ("`+`", "String and Int"),
+            '1 + "a"': ("`+`", "Int and String"),
+        }
+        for expression, fragments in cases.items():
+            with self.subTest(expression=expression):
+                self.assert_run0006(expression, *fragments)
+
+    def test_cases_that_used_to_return_python_semantics(self) -> None:
+        cases = {
+            '"%d" % 5': ("`%`", "String and Int"),  # Python string formatting
+            '"ab" * 3': ("`*`", "String and Int"),  # Python string repetition
+            '1 * "ab"': ("`*`", "Int and String"),
+            "1 + true": ("`+`", "Int and Bool"),  # Python True == 1
+            "true + true": ("`+`", "Bool and Bool"),
+            '"a" * true': ("`*`", "String and Bool"),
+            "if 1 then 2 else 3": ("if condition", "got Int"),
+            'if "" then 1 else 2': ("if condition", "got String"),
+            "1 && true": ("operand of `&&`", "got Int"),
+            "true && 5": ("operand of `&&`", "got Int"),
+            'false || "x"': ("operand of `||`", "got String"),
+            '!"a"': ("unary !", "got String"),
+            "not(3)": ("operand of `not`", "got Int"),
+        }
+        for expression, fragments in cases.items():
+            with self.subTest(expression=expression):
+                self.assert_run0006(expression, *fragments)
+
+    def test_mixed_int_and_double_operands_are_rejected(self) -> None:
+        # The type checker rejects Int op Double (TYP0003); the evaluator must
+        # not quietly promote through Python's numeric tower.
+        cases = {
+            "1 + 2.5": "Int and Double",
+            "2.5 - 1": "Double and Int",
+            "1 * 2.0": "Int and Double",
+            "1 / 2.0": "Int and Double",
+            "1 // 2.0": "Int and Double",
+            "1 % 2.0": "Int and Double",
+            "1 < 2.5": "Int and Double",
+            "2.5 >= 1": "Double and Int",
+        }
+        for expression, got in cases.items():
+            with self.subTest(expression=expression):
+                self.assert_run0006(expression, "operands must have the same type", got)
+
+    def test_int_and_double_are_never_equal(self) -> None:
+        self.assertIs(self.value_of("let r = 1 == 1.0\n"), False)
+        self.assertIs(self.value_of("let r = 1 != 1.0\n"), True)
+        self.assertIs(self.value_of("let r = 1.0 == 1.0\n"), True)
+
+    def test_conditions_and_guards_must_be_bool(self) -> None:
+        with self.assertRaisesRegex(LuneRuntimeError, "while condition: expected Bool, got Int"):
+            self.value_of("var i = 1\nlet r = while i:\n    i = 0\n")
+        with self.assertRaisesRegex(LuneRuntimeError, "elif condition: expected Bool, got String"):
+            self.value_of('let r =\n    if false:\n        1\n    elif "x":\n        2\n    else:\n        3\n')
+        with self.assertRaisesRegex(LuneRuntimeError, "match guard: expected Bool, got Int"):
+            self.value_of("let r = match 1:\n    | n if n -> n\n    | _ -> 0\n")
+
+    def test_predicates_must_return_bool(self) -> None:
+        for func in ("filter", "takeWhile", "dropWhile"):
+            with self.subTest(func=func):
+                with self.assertRaisesRegex(LuneRuntimeError, f"predicate passed to {func}: expected Bool, got Int"):
+                    self.value_of(f"let r = length({func}([1, 2], fn x -> x))\n")
+
+    def test_compound_assignment_names_the_operator_the_user_wrote(self) -> None:
+        with self.assertRaisesRegex(LuneRuntimeError, r"`\+=` needs two Int"):
+            self.value_of('var x = 1\nlet r = seq (x += "a") x\n')
+
+    def test_well_typed_operators_are_unchanged(self) -> None:
+        cases = {
+            "1 + 2": 3,
+            "1.5 + 2.5": 4.0,
+            '"a" + "b"': "ab",
+            "-3": -3,
+            "+3": 3,
+            "-2.5": -2.5,
+            "7 - 10": -3,
+            "6 * 7": 42,
+            "7 / 2": 3.5,
+            "7 // 2": 3,
+            "-7 // 2": -4,
+            "7 % 3": 1,
+            "7.5 % 2.0": 1.5,
+            "1 < 2": True,
+            "2.0 >= 1.0": True,
+            "true && false": False,
+            "false || true": True,
+            "!true": False,
+            "not(false)": True,
+            "if true then 1 else 2": 1,
+        }
+        for expression, expected in cases.items():
+            with self.subTest(expression=expression):
+                self.assertEqual(self.value_of(f"let r = {expression}\n"), expected)
+
+    def test_logical_operators_still_short_circuit(self) -> None:
+        # The right operand is only evaluated (and only then type-checked)
+        # when the left one does not decide the result.
+        self.assertIs(self.value_of("let r = false && crash()\n"), False)
+        self.assertIs(self.value_of("let r = true || crash()\n"), True)
+        self.assertIs(self.value_of("let r = false && 5\n"), False)
+
+    def test_error_messages_never_mention_python(self) -> None:
+        for expression in ('"%d" % 5', '"a" - 1', "-\"a\"", "1 && true", 'if "" then 1 else 2'):
+            with self.subTest(expression=expression):
+                with self.assertRaises(LuneRuntimeError) as ctx:
+                    self.value_of(f"let r = {expression}\n")
+                text = ctx.exception.diagnostic.message
+                for python_word in ("unsupported operand", "'str'", "'int'", "concatenate", "not supported between"):
+                    self.assertNotIn(python_word, text)
+
+
 if __name__ == "__main__":
     unittest.main()

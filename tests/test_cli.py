@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import contextlib
 import io
+import os
 import re
 import tempfile
 import unittest
@@ -13,6 +14,14 @@ from lune.messages import set_language
 from lune.repl import ReplSession
 
 ROOT = Path(__file__).resolve().parent.parent
+
+
+def setUpModule() -> None:
+    # See the note in test_explanations.py: `lune.cli.main` turns an exported
+    # LUNE_LANG into a process-global language, which would break the English
+    # assertions below for a developer who followed the book's advice.
+    os.environ.pop("LUNE_LANG", None)
+    set_language("en")
 
 
 EMPTY_FOLD_SOURCE = """module repro
@@ -61,6 +70,36 @@ class VersionTests(unittest.TestCase):
         self.assertIn('dynamic = ["version"]', text)
         self.assertIsNone(re.search(r'^version\s*=', text, re.M), "static version in pyproject.toml")
         self.assertIn('path = "lune/__init__.py"', text)
+
+
+class EvalOperandTypeTests(unittest.TestCase):
+    """`--eval` skips the type check; ill-typed operators must still fail as Lune diagnostics (issue #94)."""
+
+    def eval_binding(self, source: str, name: str) -> tuple[int, str, str]:
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "sample.lune"
+            path.write_text(source, encoding="utf-8")
+            out, err = io.StringIO(), io.StringIO()
+            with contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
+                code = main([str(path), "--eval", name])
+        return code, out.getvalue(), err.getvalue()
+
+    def test_eval_reports_operand_type_errors_as_run0006(self) -> None:
+        # The issue's headline case: `"%d" % 5` used to print "5" — Python's
+        # string formatting operator showing through.
+        code, out, err = self.eval_binding('let r = "%d" % 5\n', "r")
+        self.assertEqual(code, 1)
+        self.assertEqual(out, "")
+        self.assertIn("error[RUN0006]: `%` needs Int or Double operands, got String and Int", err)
+        self.assertIn("= hint: `lune --check` reports this before the program runs", err)
+        self.assertIn("lune explain RUN0006", err)
+        self.assertNotIn("Traceback", err)
+
+    def test_eval_does_not_leak_python_exceptions(self) -> None:
+        code, out, err = self.eval_binding('let r = "a" - 1\n', "r")
+        self.assertEqual(code, 1)
+        self.assertIn("error[RUN0006]", err)
+        self.assertNotIn("unsupported operand type", err)
 
 
 class EvalDisplayTests(unittest.TestCase):

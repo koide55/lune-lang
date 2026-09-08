@@ -353,7 +353,9 @@ result.
 Evaluation failed at run time. Common causes: using an undefined variable,
 dividing by zero (`/`, `//` or `%`), forcing a thunk that previously failed, a
 standard-library value of the wrong shape, or a `match` that no case matched
-at run time.
+at run time. An operator applied to operands of the wrong type (`"a" - 1`,
+`if 1 then ...`) is also reported here; that can only happen under
+`lune --eval`, which skips the type check.
 
 How to fix:
 
