@@ -220,6 +220,7 @@ from lune.fixer import apply_fixes
 from lune.repl import ReplSession, wants_more
 from lune.parser import parse_source
 from lune import nodes as ast
+from lune import __version__ as LUNE_VERSION
 
 ENTRY = "/app/main.lune"
 
@@ -332,7 +333,9 @@ def lune_repl_reset(lang="en"):
     _REPL["session"] = ReplSession()
     _REPL["sm"] = SourceMap()
     _REPL["n"] = 0
-    return json.dumps({"kind": "banner", "text": "Lune v0.1 REPL — :help でコマンド一覧"})
+    # 版番号は lune/__init__.py が唯一の出処。ここに数字を書き写すと端末の REPL と
+    # 食い違う（実際 v0.1.0 になったときに食い違った）。
+    return json.dumps({"kind": "banner", "text": f"Lune v{LUNE_VERSION} REPL — :help でコマンド一覧"})
 
 def lune_repl_wants_more(line):
     # same rule as the terminal REPL, not a reimplementation

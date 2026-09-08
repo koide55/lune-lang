@@ -26,6 +26,12 @@ lune --lang ja      # グローバル --lang のみ → REPL にフォールバ�
 
 グローバルフラグ（`--lang`）を取り除いた後に引数が残らない場合、CLI は REPL 起動にフォールバックする。
 
+起動時に版番号を含む1行を stdout に出す。版番号の出処は `lune/__init__.py` の `__version__` ひとつで、`lune --version` と同じ値である（`LANGUAGE_SPEC.md` §19）。
+
+```text
+Lune v0.1.0 REPL. Type :help or :quit.
+```
+
 診断メッセージの既定言語は次の優先順位で決まる（`ERROR_DIAGNOSTICS_SPEC.md` §4.2）。
 
 1. `--lang en|ja` フラグ

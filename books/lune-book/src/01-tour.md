@@ -10,7 +10,7 @@ Lune には REPL（対話環境）があります。式を打ち込むと、そ�
 
 ```console
 $ lune
-Lune v0.1 REPL. Type :help or :quit.
+Lune v0.1.0 REPL. Type :help or :quit.
 lune>
 ```
 

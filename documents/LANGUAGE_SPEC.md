@@ -891,6 +891,14 @@ REPL の `import` は v0.1 では `Any` 登録に留まり、ファイルモジ�
 
 ## 19. CLI
 
+version:
+
+```sh
+./bin/lune --version          # -V も同じ。`lune X.Y.Z` を印字して終了コード 0
+```
+
+版番号の出処は `lune/__init__.py` の `__version__` ひとつであり、パッケージメタデータ（`pyproject.toml`）と REPL 起動時のバナーも同じ値を使う。
+
 parse:
 
 ```sh
