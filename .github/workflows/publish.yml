@@ -1,0 +1,87 @@
+name: Publish to PyPI
+
+# Runs when a GitHub Release is published. The tag decides nothing: the version
+# comes from lune/__init__.py, and the job refuses to publish if the two
+# disagree — a mismatch would put a release on PyPI under a number nobody can
+# find in the repository.
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      repository:
+        description: Where to upload
+        type: choice
+        options: [testpypi, pypi]
+        default: testpypi
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Build sdist and wheel
+        run: |
+          set -euxo pipefail
+          python -m pip install --upgrade build twine
+          python -m build
+          python -m twine check dist/*
+
+      # The release page and the package would otherwise be free to disagree.
+      - name: The tag must match the packaged version
+        if: github.event_name == 'release'
+        run: |
+          set -euo pipefail
+          version=$(python -c 'import lune; print(lune.__version__)')
+          tag="${GITHUB_REF_NAME#v}"
+          echo "packaged: $version, tag: $tag"
+          test "$version" = "$tag"
+
+      # Installing the wheel away from the checkout is the only way to know the
+      # package carries everything it needs — the message catalogue and the
+      # explanations live inside it, and `lune` must resolve on PATH.
+      - name: Install the wheel and run the console script
+        run: |
+          set -euxo pipefail
+          python -m pip install dist/*.whl
+          cd "$(mktemp -d)"
+          printf 'let answer = 40 + 2\n' > smoke.lune
+          test "$(lune --eval answer smoke.lune)" = "42"
+          test "$(lune --version)" = "lune $(python -c 'import lune; print(lune.__version__)')"
+          lune explain TYP0007 | grep -q 'non-exhaustive'
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: dist/
+
+  publish:
+    name: publish
+    needs: build
+    runs-on: ubuntu-latest
+    # Trusted publishing: PyPI verifies this workflow's OIDC identity, so the
+    # project holds no API token and none can leak. Configure the publisher at
+    # https://pypi.org/manage/account/publishing/ (owner koide55, repository
+    # lune-lang, workflow publish.yml, environment pypi).
+    environment:
+      name: ${{ github.event_name == 'release' && 'pypi' || inputs.repository }}
+    permissions:
+      id-token: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist/
+
+      - name: Publish
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          repository-url: ${{ (github.event_name == 'workflow_dispatch' && inputs.repository == 'testpypi') && 'https://test.pypi.org/legacy/' || 'https://upload.pypi.org/legacy/' }}

@@ -22,6 +22,7 @@ tools/playground_links.py write documents/TUTORIAL.md documents/TUTORIAL_EN.md
 ## 方針・調査
 
 - `STRATEGY.md`: 普及戦略。「コンパイラが教える」路線の位置づけと施策の優先順位。
+- `RELEASING.md`: PyPI へのリリース手順（配布名 `lune-lang`、Trusted Publishing）。
 - `DIAGNOSTICS_COMPARISON.md`: GHC / Elm / rustc / Lune の診断を同一場面で実測比較したケーススタディ。
 
 ## 詳細仕様

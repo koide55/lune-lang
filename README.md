@@ -3,13 +3,13 @@
 コンパイラが教えてくれる、遅延評価の関数型入門言語。
 エラーも、その解説も、母語で読めます。
 
-> Lune is a teaching-first functional language: lazy by default, with diagnostics that speak your native language. If you prefer English, start with [documents/TUTORIAL_EN.md](documents/TUTORIAL_EN.md) — every diagnostic and explanation defaults to English.
+> Lune is a teaching-first functional language: lazy by default, with diagnostics that speak your native language. If you prefer English, start with [documents/TUTORIAL_EN.md](https://github.com/koide55/lune-lang/blob/main/documents/TUTORIAL_EN.md) — every diagnostic and explanation defaults to English.
 
-**[▶ Playground(インストール不要)](https://koide55.github.io/lune-lang/playground/)** · [診断カタログ](https://koide55.github.io/lune-lang/playground/errors.html) · [チュートリアル](documents/TUTORIAL.md)
+**[▶ Playground(インストール不要)](https://koide55.github.io/lune-lang/playground/)** · [診断カタログ](https://koide55.github.io/lune-lang/playground/errors.html) · [チュートリアル](https://github.com/koide55/lune-lang/blob/main/documents/TUTORIAL.md)
 
 [![CI](https://github.com/koide55/lune-lang/actions/workflows/ci.yml/badge.svg)](https://github.com/koide55/lune-lang/actions/workflows/ci.yml)
-[![Python](https://img.shields.io/badge/python-3.10%20%7C%203.11%20%7C%203.12%20%7C%203.13%20%7C%203.14-blue)](pyproject.toml)
-[![License: MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE)
+[![Python](https://img.shields.io/badge/python-3.10%20%7C%203.11%20%7C%203.12%20%7C%203.13%20%7C%203.14-blue)](https://github.com/koide55/lune-lang/blob/main/pyproject.toml)
+[![License: MIT](https://img.shields.io/badge/license-MIT-green)](https://github.com/koide55/lune-lang/blob/main/LICENSE)
 
 ---
 
@@ -118,11 +118,11 @@ nat : evaluated = Cons(1, <thunk>)   # 先頭だけ計算済み。続きは手�
 
 ## 資料棚 — ドキュメント
 
-- **[教科書『プログラミング言語 Lune』](https://koide55.github.io/lune-lang/book/)** — 序章+全13章+付録A〜E。腰を据えて体系的に学ぶならこちら。演習には解答付き。[1冊にまとめた PDF](https://koide55.github.io/lune-lang/book/lune-book.pdf)(A4・167ページ、しおり付き)もあります([原稿は books/](books/README.md))
-- [チュートリアル(日本語)](documents/TUTORIAL.md) / [Tutorial (English)](documents/TUTORIAL_EN.md) — 全20章。手を動かして1〜2時間で1周する入門。遅延評価は第2〜6章でじっくり、エラー駆動学習は第17章
-- [診断コード索引(日本語)](documents/ERROR_INDEX_JA.md) / [Error Index (English)](documents/ERROR_INDEX.md) — 自動生成、テストで同期を強制
-- [言語仕様](documents/LANGUAGE_SPEC.md)ほか、[documents/](documents/README.md) に仕様書一式
-- [普及戦略](documents/STRATEGY.md) — この部がどこへ向かうか
+- **[教科書『プログラミング言語 Lune』](https://koide55.github.io/lune-lang/book/)** — 序章+全13章+付録A〜E。腰を据えて体系的に学ぶならこちら。演習には解答付き。[1冊にまとめた PDF](https://koide55.github.io/lune-lang/book/lune-book.pdf)(A4・167ページ、しおり付き)もあります([原稿は books/](https://github.com/koide55/lune-lang/blob/main/books/README.md))
+- [チュートリアル(日本語)](https://github.com/koide55/lune-lang/blob/main/documents/TUTORIAL.md) / [Tutorial (English)](https://github.com/koide55/lune-lang/blob/main/documents/TUTORIAL_EN.md) — 全20章。手を動かして1〜2時間で1周する入門。遅延評価は第2〜6章でじっくり、エラー駆動学習は第17章
+- [診断コード索引(日本語)](https://github.com/koide55/lune-lang/blob/main/documents/ERROR_INDEX_JA.md) / [Error Index (English)](https://github.com/koide55/lune-lang/blob/main/documents/ERROR_INDEX.md) — 自動生成、テストで同期を強制
+- [言語仕様](https://github.com/koide55/lune-lang/blob/main/documents/LANGUAGE_SPEC.md)ほか、[documents/](https://github.com/koide55/lune-lang/blob/main/documents/README.md) に仕様書一式
+- [普及戦略](https://github.com/koide55/lune-lang/blob/main/documents/STRATEGY.md) — この部がどこへ向かうか
 
 ## 入部届 — はじめかた
 
@@ -142,7 +142,7 @@ cd lune-lang
 ./bin/lune --version                       # 版番号(バグ報告に添えてください)
 ```
 
-書き味の見本は [samples/](samples/) にあります(ADT・match・レコード・パイプライン `|>`・nullable・無限ストリームなど)。
+書き味の見本は [samples/](https://github.com/koide55/lune-lang/tree/main/samples) にあります(ADT・match・レコード・パイプライン `|>`・nullable・無限ストリームなど)。
 
 ### pip で入れる
 
@@ -156,7 +156,8 @@ LUNE_LANG=ja lune --check file.lune        # 既定を日本語診断にする
 ```
 
 クローン済みなら `pip install -e .` で編集可能インストールにもできます。配布名は
-`lune-lang`(PyPI の `lune` は別のパッケージが使用中)で、**PyPI への公開はまだ**です。
+`lune-lang`(PyPI の `lune` は別のパッケージが使用中)で、**PyPI への公開はまだ**です
+(手順は [documents/RELEASING.md](https://github.com/koide55/lune-lang/blob/main/documents/RELEASING.md) に用意してあります)。
 
 ## 顧問の先生より — 開発者向け
 
@@ -169,11 +170,11 @@ bash books/tools/check_examples.sh                   # 教科書のコード例�
 
 テストは「発行されうる全診断コードに詳解があること」「詳解とメッセージに日本語訳があること」「生成物(診断カタログ)が陳腐化していないこと」まで強制します。間違いを教材にする部なので、自分自身にもそこそこ厳しめです。
 
-CI([.github/workflows/ci.yml](.github/workflows/ci.yml))は push と PR のたびに、Python 3.10〜3.14 でこの2つを回し、さらに wheel を組んで `lune` コマンドが単体で動くところまで確かめます。教科書も同じ CI で HTML と PDF に組み上げます(公開しているものと同じ手順です)。
+CI([.github/workflows/ci.yml](https://github.com/koide55/lune-lang/blob/main/.github/workflows/ci.yml))は push と PR のたびに、Python 3.10〜3.14 でこの2つを回し、さらに wheel を組んで `lune` コマンドが単体で動くところまで確かめます。教科書も同じ CI で HTML と PDF に組み上げます(公開しているものと同じ手順です)。
 
 ## ライセンス
 
-[MIT License](LICENSE)。Copyright (c) 2026 Hiroshi Koide。
+[MIT License](https://github.com/koide55/lune-lang/blob/main/LICENSE)。Copyright (c) 2026 Hiroshi Koide。
 
 ---
 
