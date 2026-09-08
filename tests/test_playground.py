@@ -37,6 +37,25 @@ class PlaygroundTests(unittest.TestCase):
         self.assertIn('href="playground/"', html)
         self.assertIn('href="playground/errors.html"', html)
 
+    def test_landing_page_and_readme_link_the_book(self) -> None:
+        """The textbook was finished but unreachable: no entry point linked it."""
+        html = (ROOT / "index.html").read_text(encoding="utf-8")
+        self.assertIn('href="book/"', html)
+        self.assertIn('href="book/lune-book.pdf"', html)
+
+        readme = (ROOT / "README.md").read_text(encoding="utf-8")
+        self.assertIn("https://koide55.github.io/lune-lang/book/", readme)
+
+    def test_pages_workflow_builds_the_book_where_the_links_point(self) -> None:
+        """`book/` is not in the repo — only the Pages build produces it.
+
+        If the workflow's output paths and the links drift apart, the result is
+        a 404 that nothing else in the test suite would notice.
+        """
+        workflow = (ROOT / ".github" / "workflows" / "pages.yml").read_text(encoding="utf-8")
+        self.assertIn('--dest-dir "$GITHUB_WORKSPACE/book"', workflow)
+        self.assertIn('build_pdf.sh "$GITHUB_WORKSPACE/book/lune-book.pdf"', workflow)
+
     def test_published_pages_contain_no_mojibake(self) -> None:
         """The landing page once shipped with U+FFFD in the Japanese hero sample.
 

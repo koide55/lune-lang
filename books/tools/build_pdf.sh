@@ -38,7 +38,7 @@ PYTHON="${PYTHON:-python3}"
 
 CHROME="${CHROME:-/Applications/Google Chrome.app/Contents/MacOS/Google Chrome}"
 if [ ! -x "$CHROME" ]; then
-    for c in chromium "Google Chrome for Testing"; do
+    for c in google-chrome google-chrome-stable chromium chromium-browser "Google Chrome for Testing"; do
         p=$(command -v "$c" || true)
         [ -n "$p" ] && { CHROME="$p"; break; }
     done
