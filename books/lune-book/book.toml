@@ -6,7 +6,8 @@ language = "ja"
 src = "src"
 
 [output.html]
-additional-css = ["theme/pdf.css"]
+additional-css = ["theme/pdf.css", "theme/playground.css"]
+additional-js = ["theme/playground.js"]
 # 公開先は GitHub Pages の /book/ 配下 (.github/workflows/pages.yml が組む)。
 # site-url は 404 ページの絶対リンクにだけ使われる。
 site-url = "/lune-lang/book/"
