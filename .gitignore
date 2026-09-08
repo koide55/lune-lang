@@ -14,3 +14,6 @@ __pycache__/
 
 # Claude Code のローカル設定(許可済みコマンドの履歴を含み、秘密情報が混入し得る)
 .claude/
+
+# macOS Finder のメタデータ
+.DS_Store
