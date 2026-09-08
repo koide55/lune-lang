@@ -2,12 +2,17 @@ from __future__ import annotations
 
 import contextlib
 import io
+import re
 import tempfile
 import unittest
 from pathlib import Path
 
+from lune import __version__
 from lune.cli import main
+from lune.messages import set_language
 from lune.repl import ReplSession
+
+ROOT = Path(__file__).resolve().parent.parent
 
 
 EMPTY_FOLD_SOURCE = """module repro
@@ -20,6 +25,42 @@ let empty = Stats(count = 0)
 let emptySummary = fold([], empty, fn a x -> a)
 let twice = fold([], fold([], empty, fn a x -> a), fn a x -> a)
 """
+
+
+class VersionTests(unittest.TestCase):
+    def tearDown(self) -> None:
+        set_language("en")  # `--lang ja` below is process-global
+
+    def run_main(self, argv: list[str]) -> tuple[int, str]:
+        out = io.StringIO()
+        with contextlib.redirect_stdout(out):
+            code = main(argv)
+        return code, out.getvalue()
+
+    def test_version_flag_prints_the_package_version(self) -> None:
+        for flag in ("--version", "-V"):
+            with self.subTest(flag=flag):
+                code, output = self.run_main([flag])
+                self.assertEqual(code, 0)
+                self.assertEqual(output, f"lune {__version__}\n")
+
+    def test_version_flag_ignores_a_global_lang_option(self) -> None:
+        code, output = self.run_main(["--lang", "ja", "--version"])
+        self.assertEqual(code, 0)
+        self.assertEqual(output, f"lune {__version__}\n")
+
+    def test_version_looks_like_a_release_number(self) -> None:
+        # pyproject.toml reads the version from lune/__init__.py through
+        # hatchling, so this string is what ends up in the wheel metadata.
+        self.assertRegex(__version__, r"^\d+\.\d+\.\d+([ab]\d+|rc\d+)?$")
+
+    def test_pyproject_reads_the_version_from_the_package(self) -> None:
+        # Guards against someone putting a literal `version = "..."` back into
+        # pyproject.toml, which would let the two numbers drift apart.
+        text = (ROOT / "pyproject.toml").read_text(encoding="utf-8")
+        self.assertIn('dynamic = ["version"]', text)
+        self.assertIsNone(re.search(r'^version\s*=', text, re.M), "static version in pyproject.toml")
+        self.assertIn('path = "lune/__init__.py"', text)
 
 
 class EvalDisplayTests(unittest.TestCase):

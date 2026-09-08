@@ -4,6 +4,7 @@ from dataclasses import dataclass, replace
 import sys
 from typing import TextIO
 
+from . import __version__
 from . import nodes as ast
 from .diagnostics import (
     Diagnostic,
@@ -191,7 +192,7 @@ def repl_main(stdin: TextIO, stdout: TextIO, stderr: TextIO) -> int:
     source_map = SourceMap()
     input_index = 1
     line_editor = _configure_line_editor(stdin, stdout)
-    stdout.write("Lune v0.1 REPL. Type :help or :quit.\n")
+    stdout.write(f"Lune v{__version__} REPL. Type :help or :quit.\n")
     buffer: list[str] = []
 
     while True:

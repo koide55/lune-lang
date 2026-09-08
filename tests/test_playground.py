@@ -37,6 +37,18 @@ class PlaygroundTests(unittest.TestCase):
         self.assertIn('href="playground/"', html)
         self.assertIn('href="playground/errors.html"', html)
 
+    def test_published_pages_contain_no_mojibake(self) -> None:
+        """The landing page once shipped with U+FFFD in the Japanese hero sample.
+
+        Every page GitHub Pages serves is hand-written UTF-8 with Japanese text;
+        a replacement character means an editor or paste mangled it.
+        """
+        for page in (ROOT / "index.html", ROOT / "playground" / "index.html", ROOT / "playground" / "errors.html"):
+            with self.subTest(page=page.relative_to(ROOT)):
+                raw = page.read_bytes()
+                text = raw.decode("utf-8")  # strict: invalid bytes fail here
+                self.assertNotIn("\ufffd", text)
+
 
 if __name__ == "__main__":
     unittest.main()

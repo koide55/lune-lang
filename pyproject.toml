@@ -4,7 +4,9 @@ build-backend = "hatchling.build"
 
 [project]
 name = "lune-lang"
-version = "0.1.0"
+# The version lives in lune/__init__.py (`__version__`) so that the package
+# metadata, `lune --version` and the REPL banner cannot drift apart.
+dynamic = ["version"]
 description = "A teaching-first lazy functional language whose diagnostics speak your native language"
 readme = "README.md"
 license = "MIT"
@@ -49,6 +51,9 @@ Issues = "https://github.com/koide55/lune-lang/issues"
 # `main(argv=None)` reads sys.argv[1:] itself and returns an exit code, so the
 # console script needs no wrapper. `bin/lune` stays for git-clone users.
 lune = "lune.cli:main"
+
+[tool.hatch.version]
+path = "lune/__init__.py"
 
 [tool.hatch.build.targets.wheel]
 packages = ["lune"]
