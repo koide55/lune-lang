@@ -1,0 +1,81 @@
+name: Build the book
+description: >
+  Build books/lune-book into HTML and a single-file PDF, and check the PDF is
+  readable. Shared by the Pages deploy (which publishes the result) and CI
+  (which only wants to know that it still builds).
+
+inputs:
+  dest:
+    description: Directory to write the book into. The PDF lands in it as lune-book.pdf.
+    required: true
+  mdbook-version:
+    description: mdBook release to use.
+    required: false
+    default: "0.5.4"
+
+runs:
+  using: composite
+  steps:
+    - name: Install mdBook
+      shell: bash
+      run: |
+        set -euxo pipefail
+        version="${{ inputs.mdbook-version }}"
+        url="https://github.com/rust-lang/mdBook/releases/download/v${version}/mdbook-v${version}-x86_64-unknown-linux-gnu.tar.gz"
+        mkdir -p "$HOME/.local/bin"
+        curl -sSfL "$url" | tar -xz -C "$HOME/.local/bin"
+        echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+
+    # A python of our own: the system one is PEP 668 protected, and pikepdf
+    # (which injects the PDF bookmarks) has to be installable.
+    - uses: actions/setup-python@v5
+      with:
+        python-version: "3.12"
+
+    # poppler-utils: the PDF build measures page numbers with pdftotext.
+    # fonts-noto-cjk: without a CJK font the whole book prints as tofu, and
+    # the runner has none by default.
+    - name: Install the PDF toolchain
+      shell: bash
+      run: |
+        set -euxo pipefail
+        sudo apt-get update
+        sudo apt-get install -y --no-install-recommends poppler-utils fonts-noto-cjk
+        python -m pip install pikepdf
+
+    - name: Build the book (HTML)
+      shell: bash
+      run: mdbook build books/lune-book --dest-dir "${{ inputs.dest }}"
+
+    # Two passes plus a self-check; see books/tools/build_pdf.sh. Chrome is
+    # preinstalled on the runner and the script finds it on PATH.
+    - name: Build the book (PDF)
+      shell: bash
+      run: books/tools/build_pdf.sh "${{ inputs.dest }}/lune-book.pdf"
+
+    # A PDF can be produced and still be unreadable — a missing CJK font
+    # prints boxes, and a broken print.html prints a stub. Check that the
+    # text layer really carries the book.
+    - name: Check the PDF
+      shell: bash
+      run: |
+        set -euxo pipefail
+        pdftotext "${{ inputs.dest }}/lune-book.pdf" - | grep -q "プログラミング言語 Lune"
+        pages=$(pdfinfo "${{ inputs.dest }}/lune-book.pdf" | awk '/^Pages:/ {print $2}')
+        test "$pages" -ge 150
+
+    # mdBook CREATES a missing chapter file instead of failing, so a SUMMARY
+    # entry pointing at a typo'd filename builds green while that chapter
+    # silently disappears from the book. The give-away is a dirtied tree.
+    # build_pdf.sh also rewrites the TOC and index during the build and
+    # restores them on exit; this catches a restore that did not happen.
+    - name: The build must not have changed the sources
+      shell: bash
+      run: |
+        set -euo pipefail
+        if [ -n "$(git status --porcelain books/)" ]; then
+          echo "error: building the book modified books/ — see below" >&2
+          git status --porcelain books/ >&2
+          git diff -- books/ >&2
+          exit 1
+        fi
