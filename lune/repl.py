@@ -1,8 +1,9 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, replace
+from pathlib import Path
 import sys
-from typing import TextIO
+from typing import Iterable, TextIO
 
 from . import __version__
 from . import nodes as ast
@@ -27,7 +28,14 @@ from .evaluator import (
     set_trace_hook,
 )
 from .explanations import LANGUAGES, render_explanation
-from .messages import get_language, set_language
+from .messages import get_language, set_language, t
+from .module_loader import (
+    ModuleLoadError,
+    define_external_imports,
+    is_external_import,
+    load_program,
+    resolve_module_path,
+)
 from .parser import parse_source
 from .tokens import LuneSyntaxError
 from .typechecker import TypeEnv, check_module_into, initial_type_env
@@ -60,10 +68,18 @@ class ReplResult:
 
 
 class ReplSession:
-    def __init__(self):
+    def __init__(self, module_paths: Iterable[str | Path] = (), source_map: SourceMap | None = None):
         self.type_env = initial_type_env()
         self.eval_env = initial_env()
         self.trace_enabled = False
+        # Where `import` looks. A REPL has no entry file to sit beside, so the
+        # working directory takes that role; --module-path adds to it exactly
+        # as it does for a file.
+        self.module_paths = [Path(path) for path in module_paths]
+        # Imported sources have to reach the caller's map or their diagnostics
+        # render without the offending line.
+        self.source_map = source_map
+        self._loaded_modules: set[Path] = set()
 
     def submit(self, source: str, filename: str = "<repl>") -> ReplResult:
         source = source.strip("\n")
@@ -85,11 +101,50 @@ class ReplSession:
             warnings=tuple(_unwrap_expression_spans(warning, filename) for warning in result.warnings),
         )
 
+    def _search_roots(self) -> list[Path]:
+        return [Path.cwd().resolve(), *(path.resolve() for path in self.module_paths)]
+
+    def _load_imports(self, module: ast.ModuleFile) -> None:
+        """Bring the modules an `import` names into the session.
+
+        Without this the typechecker binds the imported *name* to `Any` and
+        nothing is loaded, so the REPL answered `ok` and then reported every
+        function in the module as undefined.
+        """
+        roots = self._search_roots()
+        for import_decl in module.imports:
+            if is_external_import(import_decl.path):
+                continue                      # java.* and friends stay opaque
+            resolved = resolve_module_path(import_decl.path, roots)
+            if resolved is None:
+                raise ModuleLoadError(
+                    t("mod.not-found", path=import_decl.path),
+                    "MOD0001",
+                    import_decl.span,
+                    t("label.module-not-found"),
+                    [t("hint.module-searched", roots=", ".join(str(root) for root in roots))],
+                )
+            program = load_program(
+                resolved, self.module_paths, self.source_map, entry_import_path=import_decl.path
+            )
+            for loaded in program.modules:    # dependencies first
+                if loaded.path in self._loaded_modules:
+                    continue
+                define_external_imports(loaded.module, self.type_env)
+                check_module_into(loaded.module, self.type_env, process_imports=False)
+                eval_module_into(loaded.module, self.eval_env)
+                self._loaded_modules.add(loaded.path)
+
     def _run(self, module: ast.ModuleFile, is_expr: bool) -> ReplResult:
         type_snapshot = _clone_type_env(self.type_env)
         warning_start = len(self.type_env.warnings)
         try:
-            check_module_into(module, self.type_env)
+            self._load_imports(module)
+            # Imports are resolved above, so the name must not also be bound to
+            # `Any` — that is what hid the real declarations (`process_imports`
+            # is how module_loader.check_file draws the same line).
+            define_external_imports(module, self.type_env)
+            check_module_into(module, self.type_env, process_imports=False)
         except Exception:
             self.type_env = type_snapshot
             raise
@@ -187,9 +242,9 @@ class ReplSession:
                 raise
 
 
-def repl_main(stdin: TextIO, stdout: TextIO, stderr: TextIO) -> int:
-    session = ReplSession()
+def repl_main(stdin: TextIO, stdout: TextIO, stderr: TextIO, module_paths: Iterable[str | Path] = ()) -> int:
     source_map = SourceMap()
+    session = ReplSession(module_paths, source_map)
     input_index = 1
     line_editor = _configure_line_editor(stdin, stdout)
     stdout.write(f"Lune v{__version__} REPL. Type :help or :quit.\n")

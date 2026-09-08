@@ -384,8 +384,11 @@ _REPL = {"session": None, "sm": None, "n": 0}
 
 def lune_repl_reset(lang="en"):
     set_language(lang)
-    _REPL["session"] = ReplSession()
     _REPL["sm"] = SourceMap()
+    # /app is where the file tabs are written, so the REPL's \`import\` finds the
+    # same modules 実行/型チェック do. The session needs the SourceMap too, or an
+    # imported module's diagnostics print without the offending line.
+    _REPL["session"] = ReplSession(["/app"], _REPL["sm"])
     _REPL["n"] = 0
     # 版番号は lune/__init__.py が唯一の出処。ここに数字を書き写すと端末の REPL と
     # 食い違う（実際 v0.1.0 になったときに食い違った）。
@@ -395,10 +398,13 @@ def lune_repl_wants_more(line):
     # same rule as the terminal REPL, not a reimplementation
     return wants_more(line)
 
-def lune_repl_submit(source, lang="en"):
+def lune_repl_submit(source, lang="en", entry="", modules="[]"):
     set_language(lang)
     if _REPL["session"] is None:
         lune_repl_reset(lang)
+    # Keep /app in step with the file tabs, so that \`import geometry\` in the
+    # REPL finds what 実行 would — whether or not the program has been run yet.
+    _write(entry, modules)
     _REPL["n"] += 1
     filename = "<repl:%d>" % _REPL["n"]
     _REPL["sm"].add(filename, source)
@@ -622,7 +628,7 @@ function replReset(call, lang) {
 }
 
 function replSubmit(call, lang, source) {
-  const r = JSON.parse(call("lune_repl_submit", source, lang));
+  const r = JSON.parse(call("lune_repl_submit", source, lang, entryCode(), modulesJson()));
   if (r.text) replAppend(colorize(r.text));
   if (r.kind === "quit") {
     repl.ended = true;
@@ -1008,12 +1014,6 @@ async function main() {
     if (!source.trim()) return;
     replEcho("lune>", "(エディタの内容)");
     replSubmit(call, lang(), source);
-    // The REPL accepts an `import` line and answers `ok`, but does not load the
-    // module — the names simply are not there. Say so rather than let someone
-    // hunt for why a function is undefined. (Run/型チェック do resolve modules.)
-    if (/^\s*import\s/m.test(source)) {
-      replAppend(`<span class="h">(注: REPL は import を解決しません。モジュールの名前は入りません — 実行・型チェックでは読み込まれます)</span>\n`);
-    }
   });
   // the session was built with the language selected at load time
   $("lang").addEventListener("change", () => replReset(call, lang()));

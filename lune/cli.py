@@ -232,7 +232,8 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
 
     if args.repl:
-        return repl_main(sys.stdin, sys.stdout, sys.stderr)
+        # --module-path applies to the REPL's `import` too, as it does to a file.
+        return repl_main(sys.stdin, sys.stdout, sys.stderr, args.module_path)
 
     if args.file is None:
         parser.error("file is required unless --repl is used")

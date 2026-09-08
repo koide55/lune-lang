@@ -57,7 +57,15 @@ def load_program(
     entry_file: str | Path,
     module_paths: Iterable[str | Path] = (),
     source_map: SourceMap | None = None,
+    entry_import_path: str | None = None,
 ) -> LoadedProgram:
+    """Load `entry_file` and everything it imports, dependencies first.
+
+    `entry_import_path` names the entry when it was itself reached through an
+    `import` — the REPL loads one imported module at a time — so that a file
+    whose own `module` declaration disagrees with that name is reported
+    (MOD0003), exactly as it would be inside a program.
+    """
     entry_path = Path(entry_file).resolve()
     search_roots = _search_roots(entry_path, module_paths)
     loaded_by_path: dict[Path, LoadedModule] = {}
@@ -112,7 +120,7 @@ def load_program(
         ordered.append(loaded)
         return loaded
 
-    visit(entry_path, None)
+    visit(entry_path, entry_import_path)
     return LoadedProgram(entry_path, ordered)
 
 
@@ -133,7 +141,7 @@ def check_file(
     program = load_program(entry_file, module_paths, source_map)
     env = initial_type_env()
     for loaded in program.modules:
-        _define_external_imports(loaded.module, env)
+        define_external_imports(loaded.module, env)
         check_module_into(loaded.module, env, process_imports=False)
     return env
 
@@ -174,7 +182,7 @@ def _read_source(path: Path, span: SourceSpan | None) -> str:
         ) from exc
 
 
-def _define_external_imports(module: ast.ModuleFile, env: TypeEnv) -> None:
+def define_external_imports(module: ast.ModuleFile, env: TypeEnv) -> None:
     for import_decl in module.imports:
         if is_external_import(import_decl.path):
             imported_name = import_decl.alias or import_decl.path.rsplit(".", 1)[-1]
