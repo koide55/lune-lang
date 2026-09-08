@@ -292,7 +292,7 @@ def initial_env() -> Env:
     env.define("show", BuiltinFunction("show", lambda args: format_value(args[0])))
     env.define("id", BuiltinFunction("id", lambda args: force_value(args[0])))
     env.define("const", BuiltinFunction("const", lambda args: force_value(args[0]), force_args=False))
-    env.define("not", BuiltinFunction("not", lambda args: not truthy(args[0])))
+    env.define("not", BuiltinFunction("not", lambda args: not require_bool(args[0], t("ctx.operand-of", op="not"))))
     env.define("crash", BuiltinFunction("crash", _builtin_crash))
     env.define("tick", BuiltinFunction("tick", lambda args: _builtin_tick(state)))
     env.define("tickCount", BuiltinFunction("tickCount", lambda args: state["ticks"]))
@@ -467,7 +467,7 @@ def _builtin_filter(args: list[Value]) -> Value:
             raise LuneRuntimeError(t("run.expects", func="filter", expected="List", got=repr(items)))
         head = items.fields[0]
         tail = items.fields[1]
-        if truthy(apply_value(predicate, [head])):
+        if require_bool(apply_value(predicate, [head]), t("ctx.predicate-of", func="filter")):
             return DataValue("Cons", [head, LazyValue(lambda tail=tail, predicate=predicate: _builtin_filter([tail, predicate]))])
         items = tail
 
@@ -554,7 +554,7 @@ def _builtin_take_while(args: list[Value]) -> Value:
         raise LuneRuntimeError(t("run.expects", func="takeWhile", expected="List", got=repr(items)))
     head = items.fields[0]
     tail = items.fields[1]
-    if truthy(apply_value(predicate, [head])):
+    if require_bool(apply_value(predicate, [head]), t("ctx.predicate-of", func="takeWhile")):
         return DataValue(
             "Cons", [head, LazyValue(lambda tail=tail, predicate=predicate: _builtin_take_while([tail, predicate]))]
         )
@@ -571,7 +571,7 @@ def _builtin_drop_while(args: list[Value]) -> Value:
             return DataValue("Nil", [])
         if not _is_constructor(items, "Cons"):
             raise LuneRuntimeError(t("run.expects", func="dropWhile", expected="List", got=repr(items)))
-        if not truthy(apply_value(predicate, [items.fields[0]])):
+        if not require_bool(apply_value(predicate, [items.fields[0]]), t("ctx.predicate-of", func="dropWhile")):
             return items
         items = items.fields[1]
 
@@ -669,12 +669,14 @@ def eval_expr(expr: ast.Expr, env: Env) -> Value:
         return eval_list_expr(expr, env)
     if isinstance(expr, ast.UnaryExpr):
         value = force_value(eval_expr(expr.expr, env))
-        if expr.op == "-":
-            return -value
-        if expr.op == "+":
-            return +value
+        if expr.op in ("-", "+"):
+            if not _is_number(value):
+                raise LuneRuntimeError(
+                    t("run.unary-numeric", op=expr.op, got=type_name(value)), hints=[t("hint.check-first")]
+                )
+            return -value if expr.op == "-" else value
         if expr.op == "!":
-            return not truthy(value)
+            return not require_bool(value, t("ctx.unary-not"))
         raise LuneRuntimeError(t("run.unsupported-unary-op", op=expr.op))
     if isinstance(expr, ast.BinaryExpr):
         return eval_binary(expr, env)
@@ -853,21 +855,35 @@ def apply_constructor(constructor: ConstructorValue, bound_fields: list[Value], 
     return DataValue(constructor.name, fields)
 
 
-def eval_binary(expr: ast.BinaryExpr, env: Env) -> Value:
-    if expr.op == "&&":
-        left = force_value(eval_expr(expr.left, env))
-        return eval_expr(expr.right, env) if truthy(left) else False
-    if expr.op == "||":
-        left = force_value(eval_expr(expr.left, env))
-        return True if truthy(left) else eval_expr(expr.right, env)
+def eval_binary(expr: ast.BinaryExpr, env: Env, op_label: str | None = None) -> Value:
+    # `op_label` names the operator in diagnostics; it differs from `expr.op`
+    # only for a desugared compound assignment (`+=` typed as `+`).
+    label = op_label or expr.op
+    if expr.op in ("&&", "||"):
+        # Short-circuit on the left; the right operand is only evaluated when
+        # it decides the result, and then it must be a Bool as well.
+        left = require_bool(eval_expr(expr.left, env), t("ctx.operand-of", op=label))
+        if expr.op == "&&" and not left:
+            return False
+        if expr.op == "||" and left:
+            return True
+        return require_bool(eval_expr(expr.right, env), t("ctx.operand-of", op=label))
     if expr.op == "??":
         left = force_value(eval_expr(expr.left, env))
         return left if left is not None else eval_expr(expr.right, env)
 
     left = force_value(eval_expr(expr.left, env))
     right = force_value(eval_expr(expr.right, env))
+    # Operand types are checked here as well as in the type checker, because
+    # `lune --eval` runs without the latter and Python's own operators would
+    # otherwise supply their semantics (`"%d" % 5`, `"ab" * 3`, `true + 1`).
     if expr.op == "+":
+        if isinstance(left, str) and isinstance(right, str):
+            return left + right
+        require_numeric_operands(label, left, right, plus=True)
         return left + right
+    if expr.op in ("-", "*", "/", "//", "%", "<", "<=", ">", ">="):
+        require_numeric_operands(label, left, right)
     if expr.op == "-":
         return left - right
     if expr.op == "*":
@@ -904,10 +920,10 @@ def eval_binary(expr: ast.BinaryExpr, env: Env) -> Value:
 
 
 def eval_if(expr: ast.IfExpr, env: Env) -> Value:
-    if truthy(force_value(eval_expr(expr.condition, env))):
+    if require_bool(eval_expr(expr.condition, env), t("ctx.if-condition")):
         return eval_expr(expr.then_branch, env)
     for condition, branch in expr.elif_branches:
-        if truthy(force_value(eval_expr(condition, env))):
+        if require_bool(eval_expr(condition, env), t("ctx.elif-condition")):
             return eval_expr(branch, env)
     if expr.else_branch is None:
         return UNIT
@@ -915,7 +931,7 @@ def eval_if(expr: ast.IfExpr, env: Env) -> Value:
 
 
 def eval_while(expr: ast.WhileExpr, env: Env) -> Value:
-    while truthy(force_value(eval_expr(expr.condition, env))):
+    while require_bool(eval_expr(expr.condition, env), t("ctx.while-condition")):
         eval_block(expr.body, env.child())
     return UNIT
 
@@ -946,7 +962,7 @@ def eval_match(expr: ast.MatchExpr, env: Env) -> Value:
         case_env = env.child()
         for name, bound in bindings.items():
             case_env.define(name, bound)
-        if case.guard is not None and not truthy(force_value(eval_expr(case.guard, case_env))):
+        if case.guard is not None and not require_bool(eval_expr(case.guard, case_env), t("ctx.match-guard")):
             continue
         return eval_expr(case.body, case_env)
     raise LuneRuntimeError(t("run.non-exhaustive", value=repr(value)))
@@ -1020,7 +1036,7 @@ def eval_assign(expr: ast.AssignExpr, env: Env) -> Value:
         compound = ast.desugar_compound_assign(expr)
         if compound is None:
             raise LuneRuntimeError(t("run.unsupported-binary-op", op=expr.op))
-        value = force_value(eval_binary(compound, env))
+        value = force_value(eval_binary(compound, env, op_label=expr.op))
     env.set(expr.target.name, value)
     return value
 
@@ -1135,14 +1151,83 @@ def values_equal(left: Value, right: Value) -> bool:
             if a is not b:
                 return False
             continue
+        # Int and Double are distinct types; the type checker rejects
+        # `1 == 1.0`, so Python's numeric tower must not make it true here.
+        if _is_number(a) and _is_number(b) and type(a) is not type(b):
+            return False
         # Scalars (Int, Double, String, Unit) compare by value.
         if a != b:
             return False
     return True
 
 
-def truthy(value: Value) -> bool:
-    return bool(force_value(value))
+def type_name(value: Value) -> str:
+    """Name a value's type the way the type checker prints it, for diagnostics.
+
+    Data values know their constructor but not their type, so `Some(1)` is
+    reported as `Some`; lists (`Cons`/`Nil`) are reported as `List`.
+    """
+    value = force_value(value)
+    if isinstance(value, bool):
+        return "Bool"
+    if isinstance(value, int):
+        return "Int"
+    if isinstance(value, float):
+        return "Double"
+    if isinstance(value, str):
+        return "String"
+    if value is None:
+        return "null"
+    if value == UNIT:
+        return "Unit"
+    if isinstance(value, DataValue):
+        return "List" if value.constructor in ("Cons", "Nil") else value.constructor
+    if isinstance(value, RecordValue):
+        return value.name
+    if isinstance(value, TupleValue):
+        return "Tuple"
+    if _format_callable(value) is not None:
+        return "function"
+    return type(value).__name__
+
+
+def _is_number(value: Value) -> bool:
+    # bool is a subclass of int in Python; in Lune, Bool is not a number.
+    return isinstance(value, (int, float)) and not isinstance(value, bool)
+
+
+def require_bool(value: Value, context: str) -> bool:
+    """Force `value` and return it as a bool, or raise RUN0006.
+
+    Every place the type checker requires a Bool (`if`/`elif`/`while`
+    conditions, `&&`/`||`/`!`, match guards, predicates, `not`) comes through
+    here, so a program that skipped the type check (`lune --eval`) cannot
+    fall back to Python truthiness, where `if 1` passes and `if ""` fails.
+    """
+    value = force_value(value)
+    if not isinstance(value, bool):
+        raise LuneRuntimeError(
+            t("run.expected-bool", context=context, got=type_name(value)), hints=[t("hint.check-first")]
+        )
+    return value
+
+
+def require_numeric_operands(op: str, left: Value, right: Value, *, plus: bool = False) -> None:
+    """Reject non-numeric or mixed Int/Double operands of a binary operator.
+
+    Mirrors the type checker (`require_numeric` + `require_assignable`): both
+    operands must be Int or Double, and both the same. `plus` picks the
+    message that also mentions Strings, which `+` accepts (two of them).
+    """
+    if not (_is_number(left) and _is_number(right)):
+        got = dict(op=op, left=type_name(left), right=type_name(right))
+        message = t("run.binary-plus", **got) if plus else t("run.binary-numeric", **got)
+        raise LuneRuntimeError(message, hints=[t("hint.check-first")])
+    if type(left) is not type(right):
+        raise LuneRuntimeError(
+            t("run.binary-mixed", op=op, left=type_name(left), right=type_name(right)),
+            hints=[t("hint.check-first")],
+        )
 
 
 def _format_callable(value: Value) -> str | None:

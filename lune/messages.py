@@ -283,6 +283,31 @@ MESSAGES: dict[str, tuple[str, str]] = {
     "run.crash-evaluated": ("crash() was evaluated", "crash() が評価されました"),
     "run.expects": ("{func} expects {expected}, got {got}", "{func} には {expected} を渡す必要がありますが、{got} でした"),
     "run.expects-lists": ("{func} expects Lists", "{func} には List を渡す必要があります"),
+    # Operand checks in the evaluator (issue #94). Only reachable when the type
+    # check was skipped (`lune --eval`); the wording follows typ.expected-numeric.
+    "run.unary-numeric": (
+        "unary `{op}` needs an Int or Double operand, got {got}",
+        "単項 `{op}` の被演算子は Int か Double でなければなりませんが、{got} でした",
+    ),
+    "run.binary-numeric": (
+        "`{op}` needs Int or Double operands, got {left} and {right}",
+        "`{op}` の被演算子は Int か Double でなければなりませんが、{left} と {right} でした",
+    ),
+    "run.binary-plus": (
+        "`{op}` needs two Int, two Double or two String operands, got {left} and {right}",
+        "`{op}` の被演算子は Int 同士・Double 同士・String 同士のいずれかでなければなりませんが、{left} と {right} でした",
+    ),
+    "run.binary-mixed": (
+        "`{op}`: operands must have the same type, got {left} and {right}",
+        "`{op}`: 両辺の型は同じでなければなりませんが、{left} と {right} でした",
+    ),
+    "run.expected-bool": ("{context}: expected Bool, got {got}", "{context}: Bool が必要ですが、{got} でした"),
+    "ctx.operand-of": ("operand of `{op}`", "`{op}` の被演算子"),
+    "ctx.predicate-of": ("predicate passed to {func}", "{func} に渡した述語の結果"),
+    "hint.check-first": (
+        "`lune --check` reports this before the program runs; `--eval` skips the type check",
+        "`lune --check` なら実行前にこの誤りを報告します（`--eval` は型検査を飛ばします）",
+    ),
     "run.not-callable": ("value is not callable: {value}", "呼び出せない値です: {value}"),
     "run.non-exhaustive": ("non-exhaustive match for value: {value}", "値がどの match ケースにも一致しません: {value}"),
     "run.let-pattern": ("let pattern did not match", "let のパターンがマッチしませんでした"),
