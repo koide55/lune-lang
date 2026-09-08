@@ -167,7 +167,7 @@ bash books/tools/check_examples.sh                   # 教科書のコード例�
 
 テストは「発行されうる全診断コードに詳解があること」「詳解とメッセージに日本語訳があること」「生成物(診断カタログ)が陳腐化していないこと」まで強制します。間違いを教材にする部なので、自分自身にもそこそこ厳しめです。
 
-CI([.github/workflows/ci.yml](.github/workflows/ci.yml))は push と PR のたびに、Python 3.10〜3.14 でこの2つを回し、さらに wheel を組んで `lune` コマンドが単体で動くところまで確かめます。
+CI([.github/workflows/ci.yml](.github/workflows/ci.yml))は push と PR のたびに、Python 3.10〜3.14 でこの2つを回し、さらに wheel を組んで `lune` コマンドが単体で動くところまで確かめます。教科書も同じ CI で HTML と PDF に組み上げます(公開しているものと同じ手順です)。
 
 ## ライセンス
 

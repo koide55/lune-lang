@@ -48,6 +48,18 @@ jobs:
       - name: Book examples
         run: bash books/tools/check_examples.sh
 
+  # The site's book comes from a build, so a broken book stops GitHub Pages
+  # from updating at all — and that failure would land on main, after review.
+  # This runs the deploy's own action, so the two cannot diverge.
+  book:
+    name: book
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/build-book
+        with:
+          dest: ${{ runner.temp }}/book
+
   package:
     name: package
     runs-on: ubuntu-latest

@@ -12,6 +12,16 @@
 `.github/workflows/pages.yml` が HTML と PDF の両方を組んで配ります。組み方は下の
 「ビルド」と同じで、`--dest-dir` がサイトの `book/` を指しているだけです。
 
+組む工程は `.github/actions/build-book` にまとめてあり、**CI が PR のたびに同じものを
+走らせます**。サイトの更新が本のビルドに依存する以上、壊れたことはマージ前に分かる
+必要があるためです。あわせて、mdBook では拾えない次の3点をユニットテスト
+（`tests/test_book.py`）で見ています。
+
+- `SUMMARY.md` の各項目にファイルが実在すること — **mdBook は無いファイルを黙って作る**ので、
+  綴りを間違えるとビルドは通ったまま、その章だけ中身が消える
+- どの `.md` も `SUMMARY.md` から辿れること
+- 本文中の相対リンクが解決すること（mdBook はリンクを検査しない）
+
 - [OUTLINE.md](OUTLINE.md) — 本書の構成案（書名・対象読者・設計方針・全章の内容・付録・執筆計画）
 - 表紙: `lune-book/src/00-cover.md` — 書名・副題・著者。HTML では `index.html`、PDF では 1 ページ目
 - 目次: `lune-book/src/00-toc.md`、索引: `src/zz-index.md` — どちらも生成物（下の「PDF」を参照）

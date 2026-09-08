@@ -53,8 +53,13 @@ class PlaygroundTests(unittest.TestCase):
         a 404 that nothing else in the test suite would notice.
         """
         workflow = (ROOT / ".github" / "workflows" / "pages.yml").read_text(encoding="utf-8")
-        self.assertIn('--dest-dir "$GITHUB_WORKSPACE/book"', workflow)
-        self.assertIn('build_pdf.sh "$GITHUB_WORKSPACE/book/lune-book.pdf"', workflow)
+        self.assertIn("dest: ${{ github.workspace }}/book", workflow)
+
+        # The deploy hands that directory to the shared build action, which is
+        # what decides the two file names the site links to.
+        action = (ROOT / ".github" / "actions" / "build-book" / "action.yml").read_text(encoding="utf-8")
+        self.assertIn('mdbook build books/lune-book --dest-dir "${{ inputs.dest }}"', action)
+        self.assertIn('build_pdf.sh "${{ inputs.dest }}/lune-book.pdf"', action)
 
     def test_published_pages_contain_no_mojibake(self) -> None:
         """The landing page once shipped with U+FFFD in the Japanese hero sample.

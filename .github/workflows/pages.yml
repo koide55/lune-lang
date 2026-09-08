@@ -14,9 +14,6 @@ concurrency:
   group: pages
   cancel-in-progress: true
 
-env:
-  MDBOOK_VERSION: "0.5.4"
-
 jobs:
   deploy:
     environment:
@@ -32,47 +29,10 @@ jobs:
       # The textbook is the one part of the site that has to be built. Its
       # sources live in books/lune-book/; the HTML goes to /book/ and the PDF
       # to /book/lune-book.pdf, so both have a stable URL to link to.
-      - name: Install mdBook
-        run: |
-          set -euxo pipefail
-          url="https://github.com/rust-lang/mdBook/releases/download/v${MDBOOK_VERSION}/mdbook-v${MDBOOK_VERSION}-x86_64-unknown-linux-gnu.tar.gz"
-          mkdir -p "$HOME/.local/bin"
-          curl -sSfL "$url" | tar -xz -C "$HOME/.local/bin"
-          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
-
-      # A python of our own: the system one is PEP 668 protected, and pikepdf
-      # (which injects the PDF bookmarks) has to be installable.
-      - uses: actions/setup-python@v5
+      # CI runs the same action on every PR, so a break lands before here.
+      - uses: ./.github/actions/build-book
         with:
-          python-version: "3.12"
-
-      # poppler-utils: the PDF build measures page numbers with pdftotext.
-      # fonts-noto-cjk: without a CJK font the whole book prints as tofu, and
-      # the runner has none by default.
-      - name: Install the PDF toolchain
-        run: |
-          set -euxo pipefail
-          sudo apt-get update
-          sudo apt-get install -y --no-install-recommends poppler-utils fonts-noto-cjk
-          python -m pip install pikepdf
-
-      - name: Build the book (HTML)
-        run: mdbook build books/lune-book --dest-dir "$GITHUB_WORKSPACE/book"
-
-      # Two passes plus a self-check; see books/tools/build_pdf.sh. Chrome is
-      # preinstalled on the runner and the script finds it on PATH.
-      - name: Build the book (PDF)
-        run: books/tools/build_pdf.sh "$GITHUB_WORKSPACE/book/lune-book.pdf"
-
-      # A PDF can be produced and still be unreadable — a missing CJK font
-      # prints boxes, and a broken print.html prints a stub. Check that the
-      # text layer really carries the book.
-      - name: Check the PDF
-        run: |
-          set -euxo pipefail
-          pdftotext book/lune-book.pdf - | grep -q "プログラミング言語 Lune"
-          pages=$(pdfinfo book/lune-book.pdf | awk '/^Pages:/ {print $2}')
-          test "$pages" -ge 150
+          dest: ${{ github.workspace }}/book
 
       - uses: actions/upload-pages-artifact@v3
         with:
