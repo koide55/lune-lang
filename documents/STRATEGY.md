@@ -50,7 +50,7 @@ Lune は直近10年の PL 研究・言語 UX 研究の成果を小さな言語�
 
 新言語の最大の離脱点はインストールである。実装が Pure Python であることは、**Pyodide (ブラウザ内 Python) でそのまま動かせる**ため普及上の武器になる。URL 一つで REPL+`explain`+診断表示が動けば「親しんでもらう」コストがゼロになる。あわせて `pip install` / `uvx lune` での配布も低コストで可能。
 
-技術検証 PoC は `playground/` にある (検証結果は `playground/README.md`)。GitHub Pages での公開も実装済み: `.github/workflows/pages.yml` が main への push でリポジトリ全体をデプロイし、ランディングページ (`index.html`)・Playground・診断カタログ (`playground/errors.html`) が 1 つの URL 配下で公開される。
+技術検証 PoC は `playground/` にある (検証結果は `playground/README.md`)。GitHub Pages での公開も実装済み: `.github/workflows/pages.yml` が main への push でリポジトリ全体をデプロイし、ランディングページ (`index.html`)・Playground・診断カタログ (`playground/errors.html`)・教科書 (`book/`、HTML と PDF。2026-09-08 に追加) が 1 つの URL 配下で公開される。
 
 「URL 一つで REPL が動く」という本項の目標は 2026-07-26 に達成した。Playground の右カラムに REPL タブがあり、端末と同じ `lune.repl.ReplSession` を駆動する (セッション保持・全 `:` コマンド・複数行入力・履歴・エディタからの読み込み)。残るのはモジュール (`import`) を含むプログラムの実行と、チュートリアルからの「Playground で開く」導線。
 

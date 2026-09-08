@@ -7,6 +7,11 @@
 
 **初稿完成**（2026-07-26）。序章・第1〜13章・付録A〜E がすべて揃いました（約 5,700 行）。
 
+**公開先**: <https://koide55.github.io/lune-lang/book/>（PDF は
+<https://koide55.github.io/lune-lang/book/lune-book.pdf>）。main への push のたびに
+`.github/workflows/pages.yml` が HTML と PDF の両方を組んで配ります。組み方は下の
+「ビルド」と同じで、`--dest-dir` がサイトの `book/` を指しているだけです。
+
 - [OUTLINE.md](OUTLINE.md) — 本書の構成案（書名・対象読者・設計方針・全章の内容・付録・執筆計画）
 - 表紙: `lune-book/src/00-cover.md` — 書名・副題・著者。HTML では `index.html`、PDF では 1 ページ目
 - 目次: `lune-book/src/00-toc.md`、索引: `src/zz-index.md` — どちらも生成物（下の「PDF」を参照）

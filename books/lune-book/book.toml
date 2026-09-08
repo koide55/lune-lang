@@ -7,3 +7,7 @@ src = "src"
 
 [output.html]
 additional-css = ["theme/pdf.css"]
+# 公開先は GitHub Pages の /book/ 配下 (.github/workflows/pages.yml が組む)。
+# site-url は 404 ページの絶対リンクにだけ使われる。
+site-url = "/lune-lang/book/"
+git-repository-url = "https://github.com/koide55/lune-lang"

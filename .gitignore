@@ -17,3 +17,6 @@ __pycache__/
 
 # macOS Finder のメタデータ
 .DS_Store
+
+# 教科書の公開ビルド (.github/workflows/pages.yml がここへ組む)
+/book/
