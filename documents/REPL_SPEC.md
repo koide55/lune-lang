@@ -32,6 +32,20 @@ lune --lang ja      # グローバル --lang のみ → REPL にフォールバ�
 Lune v0.1.0 REPL. Type :help or :quit.
 ```
 
+### 1.2 import
+
+REPL の `import` はファイルモジュールを実際に読み込む（`MODULE_LOADING_SPEC.md` §11）。探索ルートは**起動時の作業ディレクトリ**と `--module-path` で、REPL には入口ファイルが無いため前者がその役割を担う。
+
+```text
+$ lune --repl --module-path lib
+lune> import math
+ok
+lune> add(1, 2)
+3 : Int
+```
+
+読み込んだモジュールのトップレベル名はセッションに残り、`:env` にも現れる。同じモジュールを二度 `import` しても再登録はしない。解決に失敗すれば `MOD0001`、巡回は `MOD0002`、`module` 宣言名の不一致は `MOD0003` で、いずれもファイルを実行したときと同じ診断である。
+
 診断メッセージの既定言語は次の優先順位で決まる（`ERROR_DIAGNOSTICS_SPEC.md` §4.2）。
 
 1. `--lang en|ja` フラグ

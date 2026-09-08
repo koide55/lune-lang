@@ -3,13 +3,15 @@ from __future__ import annotations
 import io
 import os
 import sys
+import tempfile
 import unittest
 from contextlib import redirect_stderr, redirect_stdout
+from pathlib import Path
 from unittest import mock
 
 from lune import __version__
 from lune.cli import main
-from lune.diagnostics import SourceMap, format_diagnostic, format_exception
+from lune.diagnostics import DiagnosticError, SourceMap, format_diagnostic, format_exception
 from lune.messages import set_language
 from lune.repl import ReplSession, repl_main, wants_more
 from lune.typechecker import LuneTypeError
@@ -283,6 +285,97 @@ class CliReplFallbackTests(unittest.TestCase):
         self.assertEqual(code, 0)
         self.assertIn("language is ja", out)
         self.assertIn("未定義の名前: nosuch", err)
+
+    def test_module_path_reaches_the_repl(self) -> None:
+        """`--module-path` is a global option; the REPL's import obeys it too."""
+        with tempfile.TemporaryDirectory() as tmp:
+            (Path(tmp) / "math.lune").write_text(MATH_MODULE, encoding="utf-8")
+            code, out, err = self._run_main(["--repl", "--module-path", tmp], "import math\nadd(2, 3)\n:q\n")
+        self.assertEqual(code, 0)
+        self.assertIn("5 : Int", out)
+        self.assertEqual(err, "")
+
+
+MATH_MODULE = """module math
+
+def add(a: Int, b: Int): Int =
+    a + b
+"""
+
+
+class ReplImportTests(unittest.TestCase):
+    """`import` used to be accepted and ignored (issue #107).
+
+    The typechecker bound the imported *name* to `Any`, so the REPL answered
+    `ok` and then reported every function in the module as undefined.
+    """
+
+    def setUp(self) -> None:
+        set_language("en")
+        self.tmp = tempfile.TemporaryDirectory()
+        self.dir = Path(self.tmp.name)
+        (self.dir / "math.lune").write_text(MATH_MODULE, encoding="utf-8")
+        self.addCleanup(self.tmp.cleanup)
+
+    def session(self) -> ReplSession:
+        return ReplSession([self.dir])
+
+    def submit(self, session: ReplSession, *lines: str) -> list[str]:
+        return [session.submit(line).message for line in lines]
+
+    def test_an_imported_function_can_be_called(self) -> None:
+        messages = self.submit(self.session(), "import math", "add(1, 2)")
+        self.assertEqual(messages[0], "ok")
+        self.assertEqual(messages[1], "3 : Int")
+
+    def test_the_imported_name_is_not_shadowed_by_any(self) -> None:
+        """`import math` must not leave `math : Any` hiding the real names."""
+        session = self.session()
+        session.submit("import math")
+        self.assertIn("add", session.type_env.values)
+        self.assertNotIn("math", session.type_env.values)
+
+    def test_a_missing_module_is_reported_like_the_cli(self) -> None:
+        with self.assertRaises(DiagnosticError) as caught:
+            self.session().submit("import nosuch")
+        self.assertEqual(caught.exception.diagnostic.code, "MOD0001")
+
+    def test_a_module_that_declares_another_name_is_reported(self) -> None:
+        (self.dir / "wrong.lune").write_text("module different\n\nlet a = 1\n", encoding="utf-8")
+        with self.assertRaises(DiagnosticError) as caught:
+            self.session().submit("import wrong")
+        self.assertEqual(caught.exception.diagnostic.code, "MOD0003")
+
+    def test_importing_twice_does_not_redefine(self) -> None:
+        session = self.session()
+        session.submit("import math")
+        self.assertEqual(session.submit("import math").message, "ok")
+        self.assertEqual(session.submit("add(4, 5)").message, "9 : Int")
+
+    def test_transitive_imports_are_loaded(self) -> None:
+        (self.dir / "outer.lune").write_text(
+            "module outer\n\nimport math\n\ndef twice(n: Int): Int =\n    add(n, n)\n", encoding="utf-8"
+        )
+        session = self.session()
+        session.submit("import outer")
+        self.assertEqual(session.submit("twice(21)").message, "42 : Int")
+
+    def test_an_external_import_stays_opaque(self) -> None:
+        """java.* has no file to load; the tail name is still bound as Any."""
+        session = self.session()
+        self.assertEqual(session.submit("import java.time.LocalDate").message, "ok")
+        self.assertIn("LocalDate", session.type_env.values)
+
+    def test_a_diagnostic_in_an_imported_module_can_be_rendered(self) -> None:
+        """The imported source must reach the caller's SourceMap, or the
+        diagnostic prints without the line it is pointing at."""
+        (self.dir / "broken.lune").write_text("module broken\n\nlet a = nope + 1\n", encoding="utf-8")
+        source_map = SourceMap()
+        with self.assertRaises(DiagnosticError) as caught:
+            ReplSession([self.dir], source_map).submit("import broken")
+        rendered = format_exception(caught.exception, source_map)
+        self.assertIn("nope", rendered)
+        self.assertIn("let a = nope + 1", rendered)  # the source line itself
 
 
 if __name__ == "__main__":
