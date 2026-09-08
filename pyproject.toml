@@ -44,7 +44,7 @@ dependencies = []
 Homepage = "https://koide55.github.io/lune-lang/"
 Playground = "https://koide55.github.io/lune-lang/playground/"
 Repository = "https://github.com/koide55/lune-lang"
-Documentation = "https://github.com/koide55/lune-lang/blob/main/documents/TUTORIAL.md"
+Documentation = "https://koide55.github.io/lune-lang/book/"
 Issues = "https://github.com/koide55/lune-lang/issues"
 
 [project.scripts]
@@ -59,4 +59,6 @@ path = "lune/__init__.py"
 packages = ["lune"]
 
 [tool.hatch.build.targets.sdist]
-include = ["lune", "tests", "samples", "documents", "README.md", "LICENSE"]
+# Anchored with a leading slash: unanchored patterns match at any depth, which
+# quietly pulled in bin/lune (a file named `lune`) and every nested README.md.
+include = ["/lune", "/tests", "/samples", "/documents", "/README.md", "/LICENSE"]
