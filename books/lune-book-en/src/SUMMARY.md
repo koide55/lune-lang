@@ -24,3 +24,11 @@
 - [Talking to the Compiler](11-talking-to-the-compiler.md)
 - [The REPL, Formatting and Checking](12-tools.md)
 - [Building a Program — Case Studies](13-case-studies.md)
+
+---
+
+[Appendix A: Language Reference Manual](appendix-a-reference.md)
+[Appendix B: Standard Library Reference](appendix-b-stdlib.md)
+[Appendix C: The Diagnostic Codes](appendix-c-diagnostics.md)
+[Appendix D: CLI and REPL Command Reference](appendix-d-cli.md)
+[Appendix E: The Design of Lune, and What Comes Next](appendix-e-design.md)
