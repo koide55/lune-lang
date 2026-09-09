@@ -1,0 +1,12 @@
+module maybediv
+
+# The expected type Double? reaches both branches of the if, and the null arm
+# and the x / y arm meet there.
+def maybeDiv(x: Int, y: Int): Double? =
+    if y == 0 then null else x / y
+
+let some = maybeDiv(7, 2)
+
+let none = maybeDiv(7, 0)
+
+let fallback = maybeDiv(7, 0) ?? 0.0

@@ -1,0 +1,16 @@
+module orzero
+
+# A T? holds either a T or null.
+let present: Int? = 42
+
+let absent: Int? = null
+
+# Covering null in a match narrows v to Int in the remaining arm.
+def orZero(value: Int?): Int =
+    match value:
+        | null -> 0
+        | v -> v
+
+let unwrapped = orZero(present)
+
+let defaulted = orZero(absent)

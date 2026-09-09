@@ -1,0 +1,26 @@
+module maybediv
+
+# The expected type Option[Double] is pushed into the branches, fixing the
+# type arguments of None and Some.
+def maybeDiv(x: Int, y: Int): Option[Double] =
+    if y == 0 then None else Some(x / y)
+
+# Each arm of a match gets the expected type too, fixing Err's T and Ok's E.
+def safeDiv(x: Int, y: Int): Result[Double, String] =
+    match y:
+        | 0 -> Err("div by zero")
+        | _ -> Ok(x / y)
+
+# Looking ahead (chapter 7): branches meet the same way for a nullable type.
+def nullDiv(x: Int, y: Int): Double? =
+    if y == 0 then null else x / y
+
+let nothing: Option[Double] = None
+
+let half = maybeDiv(1, 2)
+
+let broke = maybeDiv(1, 0)
+
+let ratio = safeDiv(9, 2)
+
+let viaNull = nullDiv(9, 2)

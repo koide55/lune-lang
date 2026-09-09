@@ -1,0 +1,7 @@
+module bad
+
+# The Some(false) case is missing.
+def toInt(o: Option[Bool]): Int =
+    match o:
+        | Some(true) -> 1
+        | None -> 0

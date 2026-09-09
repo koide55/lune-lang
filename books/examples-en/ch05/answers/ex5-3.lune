@@ -1,0 +1,19 @@
+module answers
+
+# Exercise 5-3: put the result of a check into the type, information and all,
+# for both success and failure.
+type Checked =
+    | Valid(value: Int)
+    | Invalid(reason: String)
+
+def check(n: Int): Checked =
+    if n >= 0 then Valid(n) else Invalid("negative")
+
+def report(c: Checked): String =
+    match c:
+        | Valid(v) -> "ok: " + show(v)
+        | Invalid(reason) -> "rejected: " + reason
+
+let good = report(check(5))
+
+let bad = report(check(-3))

@@ -1,0 +1,18 @@
+module answers
+
+# Exercise 5-2: the next colour of a traffic light. Exhaustiveness checking
+# guarantees that every colour has been considered.
+type Light =
+    | Red
+    | Yellow
+    | Green
+
+def next(light: Light): Light =
+    match light:
+        | Red -> Green()
+        | Green -> Yellow()
+        | Yellow -> Red()
+
+let afterRed = next(Red())
+
+let afterTwo = next(next(Red()))
