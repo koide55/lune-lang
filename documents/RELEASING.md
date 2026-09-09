@@ -119,9 +119,25 @@ pip install --index-url https://test.pypi.org/simple/ lune-lang
 
 ## 公開後
 
-- `README.md` の「pip で入れる」から「**PyPI への公開はまだ**です」の一文を消し、
-  `pip install lune-lang` を第一の入れ方にする
-- `pip install lune-lang` を真っさらな環境で1回試す
+**真っさらな環境で 1 回入れて動かす。** 手元のチェックアウトから import してしまうと
+確かめたことにならないので、別ディレクトリに venv を作って、そこから叩く。
+
+```sh
+cd "$(mktemp -d)" && python3 -m venv v && v/bin/pip install lune-lang
+v/bin/python -c 'import lune; print(lune.__file__)'   # site-packages を指すこと
+v/bin/lune --version
+printf 'let answer = 40 + 2\n' > s.lune && v/bin/lune --eval answer s.lune
+printf 'let x = cont\n' > t.lune && LUNE_LANG=ja v/bin/lune --check t.lune
+```
+
+最後の 2 つが要点で、**メッセージカタログと詳解がパッケージに入っているか**は、
+これでしか分からない（リポジトリの中では手元のファイルが見えてしまう）。
+
+<https://pypi.org/project/lune-lang/> も開いて、README が描画されリンクが生きていることを
+見ておく。相対リンクは PyPI では 404 になる（下の「注意」を参照）。
+
+初回（0.1.0、2026-09-09）はこれに加えて README の「pip で入れる」を書き換えた。
+2 回目以降は、READMEの版番号に触れている箇所が無ければ、そのまま。
 
 ## 注意
 
