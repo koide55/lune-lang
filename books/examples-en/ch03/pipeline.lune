@@ -1,0 +1,18 @@
+module pipeline
+
+def inc(n: Int): Int =
+    n + 1
+
+def double(n: Int): Int =
+    n * 2
+
+def add(x: Int, y: Int): Int =
+    x + y
+
+# `x |> f` is sugar for `f(x)`: read left to right, in the order the data flows.
+let result = 5 |> inc |> double
+
+# Piping into a function of several parameters gives a partial application.
+let addFive = 5 |> add
+
+let eleven = addFive(6)

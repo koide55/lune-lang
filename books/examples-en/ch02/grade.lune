@@ -1,0 +1,12 @@
+module grade
+
+# `if` is an expression; the block form adds branches with `elif`.
+def grade(score: Int): String =
+    if score >= 80:
+        "pass"
+    elif score >= 60:
+        "retry"
+    else:
+        "fail"
+
+let result = grade(75)

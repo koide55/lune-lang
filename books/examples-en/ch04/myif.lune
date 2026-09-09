@@ -1,0 +1,12 @@
+module myif
+
+# Arguments are lazy by default, so control structures can be defined by hand.
+def myIf(c: Bool, a: Int, b: Int): Int =
+    if c then a else b
+
+def myAnd(a: Bool, b: Bool): Bool =
+    if a then b else false
+
+let taken = myIf(true, 1, crash())
+
+let skipped = myAnd(false, crash())

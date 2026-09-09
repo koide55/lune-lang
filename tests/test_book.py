@@ -150,6 +150,17 @@ class TranslationTests(unittest.TestCase):
                 ja_files = {p.relative_to(ja_chapter) for p in ja_chapter.rglob("*.lune")}
                 self.assertEqual(en_files, ja_files)
 
+    def test_the_english_edition_is_written_in_english(self) -> None:
+        """A sentence half-translated is easy to leave behind and hard to spot.
+
+        The English edition talks *about* `--lang ja`, but never in Japanese.
+        """
+        japanese = re.compile(r"[ぁ-んァ-ヶ一-龠]")
+        for page in pages(BOOKS["en"]) + [BOOKS["en"] / "src" / "SUMMARY.md"]:
+            with self.subTest(page=page.name):
+                found = japanese.search(page.read_text(encoding="utf-8"))
+                self.assertIsNone(found, found and f"untranslated: ...{found.string[max(0, found.start() - 40):found.end() + 40]}...")
+
     def test_the_english_examples_are_not_in_japanese(self) -> None:
         """Comments have to be translated too; the code itself is the same."""
         japanese = re.compile(r"[ぁ-んァ-ヶ一-龠]")

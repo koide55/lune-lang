@@ -1,0 +1,7 @@
+module answers
+
+# Exercise 4-2: myOr short-circuits — a true on the left never evaluates the right.
+def myOr(a: Bool, b: Bool): Bool =
+    if a then true else b
+
+let shortCircuited = myOr(true, crash())
