@@ -77,6 +77,37 @@ gh release create v0.1.0 --title "Lune v0.1.0" --notes "..."
 - チェックアウトの外で wheel を入れ、`lune --eval` / `lune --version` / `lune explain`
   が動くことを確かめる（メッセージカタログや詳解がパッケージに入り損ねていないか）
 
+## 詰まったとき
+
+### `invalid-publisher`（2026-09-09 に実際に出た）
+
+```
+Trusted publishing exchange failure:
+* `invalid-publisher`: valid token, but no corresponding publisher
+```
+
+GitHub 側は正常で、**PyPI 側の pending publisher がまだ無い**（または値が違う）という意味。
+`build` job が通って `publish` job だけが落ちているのが目印になる。ログには GitHub が
+送った身元情報がそのまま出るので、§0 の表と突き合わせて登録する。
+
+```
+* repository:   koide55/lune-lang
+* workflow_ref: koide55/lune-lang/.github/workflows/publish.yml@refs/tags/v0.1.0
+* environment:  pypi
+```
+
+**この失敗で版番号は焼けない。** 何も PyPI に届いていないので、タグを作り直す必要はなく、
+登録後に落ちたジョブを再実行すればよい。
+
+```sh
+gh run rerun <RUN_ID> --failed
+```
+
+### TestPyPI は別サービス
+
+test.pypi.org は PyPI とアカウントも登録も別。片方に登録しても、もう片方では
+`invalid-publisher` になる。
+
 ## 試し撃ち（TestPyPI）
 
 本番の前に通しで試したいときは、Actions から `Publish to PyPI` を
