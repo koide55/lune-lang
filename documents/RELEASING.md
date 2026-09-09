@@ -39,10 +39,26 @@ grep -n __version__ lune/__init__.py
 ```sh
 PYTHONPATH=. python3 -m unittest discover -s tests   # 処理系のテスト
 bash books/tools/check_examples.sh                   # 教科書のコード例
-python3 -m build && python3 -m twine check dist/*    # 配布物とメタデータ
 ```
 
-`twine check` は README が PyPI で描画できるかまで見る。
+配布物も手元で組んで確かめたい場合は、次のどちらかで。**`build` と `twine` は標準
+ライブラリではなく、Homebrew の python は PEP 668 で `pip install` を拒む**ので、
+`python3 -m build` を直接叩くと `No module named build` になる。
+
+```sh
+pipx run build && pipx run twine check dist/*        # pipx があるならこれが手軽
+```
+
+```sh
+python3 -m venv .venv && .venv/bin/pip install build twine   # 初回だけ
+.venv/bin/python -m build && .venv/bin/python -m twine check dist/*
+```
+
+`twine check` は README が PyPI で描画できるかまで見る。`dist/` は `.gitignore` 済み。
+
+**この手順は省いてもよい。** 同じことを CI の `package` job が PR ごとに、
+`publish.yml` がアップロード直前にもう一度やる。手元で確かめるのは、リリース前に
+自分の目で見ておきたいときのため。
 
 ## 3. タグを打って Release を作る
 
