@@ -20,12 +20,45 @@ import json
 import re
 import subprocess
 import sys
+from dataclasses import dataclass
 from pathlib import Path
+from typing import Callable
 
 BOOKS = Path(__file__).resolve().parent.parent
-SRC = BOOKS / "lune-book" / "src"
-TOC_PATH = SRC / "00-toc.md"
-INDEX_PATH = SRC / "zz-index.md"
+
+
+# --- 版ごとの違い -------------------------------------------------------------
+#
+# 日本語版と英語版で違うのは、本の場所と、生成するページに書く文字列と、索引語だけ。
+# 測り方（PDF から実測する2パス）は共通なので、ここに差分を集めて本体は共有する。
+
+@dataclass(frozen=True)
+class Edition:
+    book: str                       # books/ の下のディレクトリ名
+    toc_title: str
+    index_title: str
+    cover_label: str                # しおりの先頭項目
+    chapter_label: Callable[[int], str]
+    heading_re: str                 # 索引で「見出し行」と見なす行
+    toc_page_first_line: str        # 目次ページを索引から外すための目印
+    toc_note: str
+    index_intro: str
+    index_outro: str
+    concepts: list[tuple[str, list[str]]]
+
+
+SRC = None                          # 選ばれた版の src（load_edition が入れる）
+EDITION = None
+TOC_PATH = None
+INDEX_PATH = None
+
+
+def load_edition(name: str) -> None:
+    global SRC, EDITION, TOC_PATH, INDEX_PATH
+    EDITION = EDITIONS[name]
+    SRC = BOOKS / EDITION.book / "src"
+    TOC_PATH = SRC / "00-toc.md"
+    INDEX_PATH = SRC / "zz-index.md"
 
 
 # --- SUMMARY.md ---------------------------------------------------------------
@@ -98,7 +131,7 @@ def measure_starts(pdf: Path) -> dict[str, int]:
 # --- 目次 ---------------------------------------------------------------------
 
 def emit_toc(starts: dict[str, int] | None) -> str:
-    lines = ["# 目次", ""]
+    lines = [f"# {EDITION.toc_title}", ""]
     if starts:
         lines += ["| | | |", "| --- | --- | ---: |"]
     else:
@@ -112,18 +145,14 @@ def emit_toc(starts: dict[str, int] | None) -> str:
         label = ""
         if e["numbered"]:
             n += 1
-            label = f"第{n}章"
+            label = EDITION.chapter_label(n)
         link = f"[{e['title']}]({e['href']})"
         if starts:
             page = starts.get(e["href"])
             lines.append(f"| {label} | {link} | {page if page else ''} |")
         else:
             lines.append(f"| {label} | {link} |")
-    lines += ["", "<div class=\"toc-note\">",
-              "",
-              "章の中の節までは載せていません。HTML 版では左の目次から、"
-              "PDF 版ではしおりからたどれます。",
-              "", "</div>", ""]
+    lines += ["", "<div class=\"toc-note\">", "", EDITION.toc_note, "", "</div>", ""]
     return "\n".join(lines)
 
 
@@ -131,7 +160,7 @@ def emit_toc(starts: dict[str, int] | None) -> str:
 
 # 索引語は人が選ぶ。自動抽出だと「診断」のような頻出語が並んで役に立たないため。
 # (見出し語, 探す表記のリスト) の形。表記は完全一致で数える。
-CONCEPTS: list[tuple[str, list[str]]] = [
+CONCEPTS_JA: list[tuple[str, list[str]]] = [
     ("値と型", []),
     ("Int（任意精度）", ["任意精度"]),
     ("Double", ["Double"]),
@@ -194,6 +223,107 @@ CONCEPTS: list[tuple[str, list[str]]] = [
     ("Playground", ["Playground"]),
 ]
 
+
+# 英語版。分類は日本語版と同じで、探す表記だけ英語にしてある。
+CONCEPTS_EN: list[tuple[str, list[str]]] = [
+    ("Values and types", []),
+    ("Int (arbitrary precision)", ["arbitrary precision"]),
+    ("Double", ["Double"]),
+    ("String", ["String"]),
+    ("Bool", ["Bool"]),
+    ("Unit", ["Unit"]),
+    ("Nothing", ["Nothing"]),
+    ("tuple", ["tuple"]),
+    ("type annotation", ["type annotation"]),
+    ("local type inference", ["expected type"]),
+    ("type variable", ["type variable", "type parameter"]),
+    ("Lazy evaluation", []),
+    ("lazy evaluation", ["lazy evaluation"]),
+    ("thunk", ["thunk"]),
+    ("memoisation", ["memoisation", "memoise"]),
+    ("strictness", ["strict let", "strict parameter"]),
+    ("force", ["force"]),
+    ("deepForce", ["deepForce"]),
+    ("seq", ["seq "]),
+    ("infinite list", ["infinite list"]),
+    ("stream", ["stream"]),
+    ("Functions", []),
+    ("partial application", ["partial application"]),
+    ("currying", ["curried", "currying"]),
+    ("higher-order function", ["higher-order"]),
+    ("lambda", ["lambda"]),
+    ("pipeline", ["pipeline", "|>"]),
+    ("recursion", ["recursive function", "recursion"]),
+    ("Data and branching", []),
+    ("algebraic data type", ["algebraic data type", "ADT"]),
+    ("pattern matching", ["pattern matching"]),
+    ("exhaustiveness", ["exhaustive"]),
+    ("irrefutable pattern", ["irrefutable", "refutable"]),
+    ("record", ["record"]),
+    ("Option", ["Option"]),
+    ("Result", ["Result"]),
+    ("Null safety", []),
+    ("null safety", ["null safety"]),
+    ("narrowing", ["narrow"]),
+    ("null coalescing", ["??"]),
+    ("safe navigation", ["?."]),
+    ("Operators", []),
+    ("floor division", ["floor division", "//"]),
+    ("compound assignment", ["compound assignment"]),
+    ("short-circuiting", ["short-circuit"]),
+    ("Imperative features", []),
+    ("var", ["var "]),
+    ("while", ["while"]),
+    ("for", ["for "]),
+    ("IO", ["IO:"]),
+    ("modules", ["module"]),
+    ("Tools and diagnostics", []),
+    ("diagnostic code", ["diagnostic code"]),
+    ("explain", ["lune explain", ":explain"]),
+    ("fmt", ["lune fmt"]),
+    ("fix", ["lune fix"]),
+    ("REPL", ["REPL"]),
+    (":thunks", [":thunks"]),
+    (":trace", [":trace"]),
+    ("Playground", ["Playground"]),
+]
+
+
+EDITIONS: dict[str, Edition] = {
+    "ja": Edition(
+        book="lune-book",
+        toc_title="目次",
+        index_title="索引",
+        cover_label="表紙",
+        chapter_label=lambda n: f"第{n}章",
+        heading_re=r'^\s*(序章|第\d+章|付録[A-E]|\d+\.\d+ |目次|索引)',
+        toc_page_first_line="目次",
+        toc_note="章の中の節までは載せていません。HTML 版では左の目次から、"
+                 "PDF 版ではしおりからたどれます。",
+        index_intro="本文と付録に現れる主な用語です。ページ番号は PDF 版のものです"
+                    "（HTML 版では上の検索が使えます）。",
+        index_outro="付録B（標準ライブラリ）・付録C（診断コード）・"
+                    "付録D（CLI と REPL）は、それぞれの一覧そのものが索引として使えます。",
+        concepts=CONCEPTS_JA,
+    ),
+    "en": Edition(
+        book="lune-book-en",
+        toc_title="Contents",
+        index_title="Index",
+        cover_label="Cover",
+        chapter_label=lambda n: f"Chapter {n}",
+        heading_re=r'^\s*(Preface|Chapter \d+|Appendix [A-E]|\d+\.\d+ |Contents|Index)',
+        toc_page_first_line="Contents",
+        toc_note="Sections within a chapter are not listed. Follow them from the "
+                 "sidebar in the HTML edition, or from the bookmarks in the PDF.",
+        index_intro="The main terms appearing in the chapters and appendices. The page "
+                    "numbers are those of the PDF edition (in HTML, use the search above).",
+        index_outro="Appendix B (the standard library), appendix C (the diagnostic codes) "
+                    "and appendix D (the CLI and the REPL) are themselves usable as indexes.",
+        concepts=CONCEPTS_EN,
+    ),
+}
+
 MAX_PAGES = 8          # 1 語あたりに載せるページ数の上限
 TOO_COMMON = 40        # これより多くのページに出る語は、見出しに出るページだけ載せる
 
@@ -205,7 +335,7 @@ def emit_index(pdf: Path) -> str:
     heads = []
     for p in flat:
         hs = [ln.strip() for ln in p.splitlines()
-              if re.match(r'^\s*(序章|第\d+章|付録[A-E]|\d+\.\d+ |目次|索引)', ln.strip())]
+              if re.match(EDITION.heading_re, ln.strip())]
         heads.append("\n".join(hs))
 
     # 前付けと索引自身は対象から外す。
@@ -219,13 +349,11 @@ def emit_index(pdf: Path) -> str:
         skip |= set(range(idx, len(flat) + 1))
     for i, p in enumerate(flat, start=1):
         first = next((ln.strip() for ln in p.splitlines() if ln.strip()), "")
-        if first == "目次":
+        if first == EDITION.toc_page_first_line:
             skip.add(i)
 
-    lines = ["# 索引", "",
-             "本文と付録に現れる主な用語です。ページ番号は PDF 版のものです"
-             "（HTML 版では上の検索が使えます）。", ""]
-    for label, needles in CONCEPTS:
+    lines = [f"# {EDITION.index_title}", "", EDITION.index_intro, ""]
+    for label, needles in EDITION.concepts:
         if not needles:                    # 分類の見出し
             lines += ["", f"**{label}**", ""]
             continue
@@ -242,8 +370,7 @@ def emit_index(pdf: Path) -> str:
         shown = hits[:MAX_PAGES]
         more = "…" if len(hits) > len(shown) else ""
         lines.append(f"- {label} … {', '.join(str(p) for p in shown)}{more}")
-    lines += ["", "付録B（標準ライブラリ）・付録C（診断コード）・"
-              "付録D（CLI と REPL）は、それぞれの一覧そのものが索引として使えます。", ""]
+    lines += ["", EDITION.index_outro, ""]
     return "\n".join(lines)
 
 
@@ -259,7 +386,7 @@ def inject_bookmarks(pdf: Path, starts: dict[str, int]) -> bool:
     with pikepdf.open(pdf, allow_overwriting_input=True) as doc:
         with doc.open_outline() as outline:
             outline.root.clear()
-            outline.root.append(pikepdf.OutlineItem("表紙", 0))
+            outline.root.append(pikepdf.OutlineItem(EDITION.cover_label, 0))
             for href in order:
                 page = starts.get(href)
                 if page is None:
@@ -276,7 +403,10 @@ def main(argv: list[str] | None = None) -> int:
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("command", choices=("toc", "index", "starts", "bookmarks"))
     ap.add_argument("--pdf", type=Path)
+    ap.add_argument("--edition", choices=tuple(EDITIONS), default="ja",
+                    help="どちらの版を対象にするか (既定: ja)")
     args = ap.parse_args(argv)
+    load_edition(args.edition)
 
     if args.command == "toc":
         starts = measure_starts(args.pdf) if args.pdf else None

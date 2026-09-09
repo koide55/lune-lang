@@ -1,6 +1,7 @@
 # Summary
 
 [Cover](00-cover.md)
+[Contents](00-toc.md)
 [Preface: Welcome to Lune](00-preface.md)
 
 # Part I: One Lap Around
@@ -32,3 +33,7 @@
 [Appendix C: The Diagnostic Codes](appendix-c-diagnostics.md)
 [Appendix D: CLI and REPL Command Reference](appendix-d-cli.md)
 [Appendix E: The Design of Lune, and What Comes Next](appendix-e-design.md)
+
+---
+
+[Index](zz-index.md)

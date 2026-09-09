@@ -125,6 +125,30 @@ class LinkTests(unittest.TestCase):
                         )
 
 
+class PdfBuildTests(unittest.TestCase):
+    """Both editions are built by the same two-pass script."""
+
+    def test_the_script_knows_both_editions(self) -> None:
+        script = (ROOT / "books" / "tools" / "build_pdf.sh").read_text(encoding="utf-8")
+        self.assertIn("lune-book)    EDITION=ja", script)
+        self.assertIn("lune-book-en) EDITION=en", script)
+
+    def test_each_edition_has_a_generated_contents_and_index(self) -> None:
+        """Committed without page numbers for HTML; swapped during the PDF build."""
+        for edition, book in BOOKS.items():
+            for name in ("00-toc.md", "zz-index.md"):
+                with self.subTest(edition=edition, page=name):
+                    self.assertTrue((book / "src" / name).exists())
+
+    def test_the_pdf_check_string_matches_the_edition(self) -> None:
+        """A PDF can be produced and still be unreadable; the check greps the
+        text layer, so the string has to be one that edition really contains."""
+        workflow = (ROOT / ".github" / "workflows" / "pages.yml").read_text(encoding="utf-8")
+        self.assertIn("pdf-must-contain: The Lune Programming Language", workflow)
+        cover = (BOOKS["en"] / "src" / "00-cover.md").read_text(encoding="utf-8")
+        self.assertIn("The Lune Programming Language", cover)
+
+
 class TranslationTests(unittest.TestCase):
     """The English edition is a translation, not a fork.
 

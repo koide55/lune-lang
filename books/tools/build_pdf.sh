@@ -2,6 +2,7 @@
 # 教科書を1冊の PDF に組む。
 #
 #   books/tools/build_pdf.sh [出力先.pdf]
+#   BOOK=lune-book-en books/tools/build_pdf.sh out.pdf   # 英語版
 #
 # mdBook が生成する print.html（全ページを1枚に連結したもの）を、ヘッドレスの
 # Chrome で印刷する。OUTLINE の「PDF が必要になったら print.html を第一候補と
@@ -21,7 +22,15 @@
 set -euo pipefail
 
 BOOKS_DIR="$(cd "$(dirname "$0")/.." && pwd)"
-BOOK_DIR="$BOOKS_DIR/lune-book"
+# 版の選択。BOOK はディレクトリ名、EDITION は book_pages.py に渡す名前で、
+# 目次・索引に書く文字列と索引語がこれで変わる。
+BOOK="${BOOK:-lune-book}"
+case "$BOOK" in
+    lune-book)    EDITION=ja ;;
+    lune-book-en) EDITION=en ;;
+    *) echo "error: 未知の本です: $BOOK (lune-book | lune-book-en)" >&2; exit 2 ;;
+esac
+BOOK_DIR="$BOOKS_DIR/$BOOK"
 SRC_DIR="$BOOK_DIR/src"
 OUT="${1:-$BOOK_DIR/lune-book.pdf}"
 PAGES_TOOL="$BOOKS_DIR/tools/book_pages.py"
@@ -67,27 +76,39 @@ render() { # 出力先
     [ -s "$1" ] || { echo "error: PDF が生成されませんでした" >&2; exit 1; }
 }
 
+# ページ番号を入れると目次自体の行数が変わり、その分だけ本文がずれることがある
+# （英語版は章題が長く、実際に 1 ページずれた）。ずれなくなるまで組み直す。
+# 3 周を超えて落ち着かないなら、それは目次が 1 行増減するたびに本文が 1 ページ
+# 動く「境界」に当たっているので、人が見るべき状態として警告する。
 echo "==> 1 パス目 (ページ番号を測る)"
-render "$TMP/pass1.pdf"
-before=$("$PYTHON" "$PAGES_TOOL" starts --pdf "$TMP/pass1.pdf")
+render "$TMP/pass.pdf"
+measured=$("$PYTHON" "$PAGES_TOOL" starts --pdf "$TMP/pass.pdf" --edition "$EDITION")
 
-echo "==> 目次と索引を生成"
-"$PYTHON" "$PAGES_TOOL" toc   --pdf "$TMP/pass1.pdf"
-"$PYTHON" "$PAGES_TOOL" index --pdf "$TMP/pass1.pdf"
+converged=0
+for round in 2 3 4; do
+    echo "==> 目次と索引を生成"
+    "$PYTHON" "$PAGES_TOOL" toc   --pdf "$TMP/pass.pdf" --edition "$EDITION"
+    "$PYTHON" "$PAGES_TOOL" index --pdf "$TMP/pass.pdf" --edition "$EDITION"
 
-echo "==> 2 パス目"
-render "$OUT"
+    echo "==> $round パス目"
+    render "$OUT"
+    after=$("$PYTHON" "$PAGES_TOOL" starts --pdf "$OUT" --edition "$EDITION")
+    if [ "$measured" = "$after" ]; then
+        echo "==> 検算: 章の開始ページが前のパスと一致 (目次のページ番号は正しい)"
+        converged=1
+        break
+    fi
+    # ずれた分を取り込んでもう一度。次の生成はこの PDF の実測値を使う。
+    cp "$OUT" "$TMP/pass.pdf"
+    measured="$after"
+done
 
-after=$("$PYTHON" "$PAGES_TOOL" starts --pdf "$OUT")
-if [ "$before" != "$after" ]; then
-    echo "warning: 2 パスの間で章の開始ページが動きました。目次のページ番号がずれています。" >&2
-    echo "         目次の行数が変わったのが原因です。" >&2
-else
-    echo "==> 検算: 章の開始ページは 2 パスで一致 (目次のページ番号は正しい)"
+if [ "$converged" -ne 1 ]; then
+    echo "warning: パスを重ねても章の開始ページが落ち着きません。目次のページ番号がずれています。" >&2
 fi
 
 echo "==> しおりを付ける"
-"$PYTHON" "$PAGES_TOOL" bookmarks --pdf "$OUT"
+"$PYTHON" "$PAGES_TOOL" bookmarks --pdf "$OUT" --edition "$EDITION"
 
 if command -v pdfinfo > /dev/null; then
     pages=$(pdfinfo "$OUT" | awk '/^Pages:/ {print $2}')
