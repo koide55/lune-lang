@@ -65,7 +65,7 @@ jobs:
         with:
           book: books/lune-book-en
           dest: ${{ runner.temp }}/book-en
-          pdf: "false"
+          pdf-must-contain: The Lune Programming Language
 
   package:
     name: package

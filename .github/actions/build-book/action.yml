@@ -12,6 +12,13 @@ inputs:
   dest:
     description: Directory to write the book into. The PDF lands in it as lune-book.pdf.
     required: true
+  pdf-must-contain:
+    description: >
+      A string that must appear in the PDF's text layer. A PDF can be produced
+      and still be unreadable — a missing CJK font prints boxes — so this is
+      how the build knows the text really came through.
+    required: false
+    default: プログラミング言語 Lune
   pdf:
     description: >
       Build the single-file PDF as well. The English edition is still being
@@ -65,6 +72,9 @@ runs:
     - name: Build the book (PDF)
       if: inputs.pdf == 'true'
       shell: bash
+      env:
+        # build_pdf.sh takes the directory name under books/, not a path
+        BOOK: ${{ inputs.book == 'books/lune-book-en' && 'lune-book-en' || 'lune-book' }}
       run: books/tools/build_pdf.sh "${{ inputs.dest }}/lune-book.pdf"
 
     # A PDF can be produced and still be unreadable — a missing CJK font
@@ -75,7 +85,7 @@ runs:
       shell: bash
       run: |
         set -euxo pipefail
-        pdftotext "${{ inputs.dest }}/lune-book.pdf" - | grep -q "プログラミング言語 Lune"
+        pdftotext "${{ inputs.dest }}/lune-book.pdf" - | grep -q "${{ inputs.pdf-must-contain }}"
         pages=$(pdfinfo "${{ inputs.dest }}/lune-book.pdf" | awk '/^Pages:/ {print $2}')
         test "$pages" -ge 150
 

@@ -34,12 +34,12 @@ jobs:
         with:
           dest: ${{ github.workspace }}/book
 
-      # The English edition, under /book/en/. No PDF while it is unfinished.
+      # The English edition, under /book/en/.
       - uses: ./.github/actions/build-book
         with:
           book: books/lune-book-en
           dest: ${{ github.workspace }}/book/en
-          pdf: "false"
+          pdf-must-contain: The Lune Programming Language
 
       - uses: actions/upload-pages-artifact@v3
         with:
