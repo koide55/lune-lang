@@ -1,0 +1,7 @@
+error[TYP0001]: undefined name: valeus
+  --> typos.lune:5:18
+  |
+5 | let total = fold(valeus, 0, fn a x -> a + x)
+  |                  ^^^^^^ name is not defined
+   = hint: did you mean `values`?
+   = help: run `lune explain TYP0001` for a detailed explanation

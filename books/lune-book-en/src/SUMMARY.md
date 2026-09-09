@@ -18,3 +18,9 @@
 - [Lists and Streams](08-lists-and-streams.md)
 - [Writing Imperatively — var, while, for and IO](09-imperative.md)
 - [Modules](10-modules.md)
+
+# Part III: The Compiler and the Tools
+
+- [Talking to the Compiler](11-talking-to-the-compiler.md)
+- [The REPL, Formatting and Checking](12-tools.md)
+- [Building a Program — Case Studies](13-case-studies.md)
