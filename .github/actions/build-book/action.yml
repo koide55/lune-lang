@@ -85,7 +85,11 @@ runs:
       shell: bash
       run: |
         set -euxo pipefail
-        pdftotext "${{ inputs.dest }}/lune-book.pdf" - | grep -q "${{ inputs.pdf-must-contain }}"
+        # Join the lines before matching: a title long enough to wrap is split
+        # across two lines in the text layer, and the English cover does wrap
+        # ("The Lune Programming" / "Language").
+        pdftotext "${{ inputs.dest }}/lune-book.pdf" - | tr '\n' ' ' | tr -s ' ' \
+            | grep -q "${{ inputs.pdf-must-contain }}"
         pages=$(pdfinfo "${{ inputs.dest }}/lune-book.pdf" | awk '/^Pages:/ {print $2}')
         test "$pages" -ge 150
 
