@@ -39,10 +39,26 @@ grep -n __version__ lune/__init__.py
 ```sh
 PYTHONPATH=. python3 -m unittest discover -s tests   # 処理系のテスト
 bash books/tools/check_examples.sh                   # 教科書のコード例
-python3 -m build && python3 -m twine check dist/*    # 配布物とメタデータ
 ```
 
-`twine check` は README が PyPI で描画できるかまで見る。
+配布物も手元で組んで確かめたい場合は、次のどちらかで。**`build` と `twine` は標準
+ライブラリではなく、Homebrew の python は PEP 668 で `pip install` を拒む**ので、
+`python3 -m build` を直接叩くと `No module named build` になる。
+
+```sh
+pipx run build && pipx run twine check dist/*        # pipx があるならこれが手軽
+```
+
+```sh
+python3 -m venv .venv && .venv/bin/pip install build twine   # 初回だけ
+.venv/bin/python -m build && .venv/bin/python -m twine check dist/*
+```
+
+`twine check` は README が PyPI で描画できるかまで見る。`dist/` は `.gitignore` 済み。
+
+**この手順は省いてもよい。** 同じことを CI の `package` job が PR ごとに、
+`publish.yml` がアップロード直前にもう一度やる。手元で確かめるのは、リリース前に
+自分の目で見ておきたいときのため。
 
 ## 3. タグを打って Release を作る
 
@@ -60,6 +76,37 @@ gh release create v0.1.0 --title "Lune v0.1.0" --notes "..."
 - sdist と wheel を組み、`twine check` を通す
 - チェックアウトの外で wheel を入れ、`lune --eval` / `lune --version` / `lune explain`
   が動くことを確かめる（メッセージカタログや詳解がパッケージに入り損ねていないか）
+
+## 詰まったとき
+
+### `invalid-publisher`（2026-09-09 に実際に出た）
+
+```
+Trusted publishing exchange failure:
+* `invalid-publisher`: valid token, but no corresponding publisher
+```
+
+GitHub 側は正常で、**PyPI 側の pending publisher がまだ無い**（または値が違う）という意味。
+`build` job が通って `publish` job だけが落ちているのが目印になる。ログには GitHub が
+送った身元情報がそのまま出るので、§0 の表と突き合わせて登録する。
+
+```
+* repository:   koide55/lune-lang
+* workflow_ref: koide55/lune-lang/.github/workflows/publish.yml@refs/tags/v0.1.0
+* environment:  pypi
+```
+
+**この失敗で版番号は焼けない。** 何も PyPI に届いていないので、タグを作り直す必要はなく、
+登録後に落ちたジョブを再実行すればよい。
+
+```sh
+gh run rerun <RUN_ID> --failed
+```
+
+### TestPyPI は別サービス
+
+test.pypi.org は PyPI とアカウントも登録も別。片方に登録しても、もう片方では
+`invalid-publisher` になる。
 
 ## 試し撃ち（TestPyPI）
 
