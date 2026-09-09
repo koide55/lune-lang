@@ -1,0 +1,20 @@
+module answers
+
+# Exercise 5-4: build a generic container by hand — the same structure as the
+# prelude's Option.
+type MyOption[T] =
+    | MySome(value: T)
+    | MyNone
+
+def myGetOrElse[T](option: MyOption[T], defaultValue: T): T =
+    match option:
+        | MySome(value) -> value
+        | MyNone -> defaultValue
+
+let some = myGetOrElse(MySome(42), 0)
+
+let none = myGetOrElse(MyNone(), 0)
+
+# Fixing type arguments from the expected type (§5.6) works for a generic ADT
+# of your own too.
+let empty: MyOption[Int] = MyNone()

@@ -1,0 +1,12 @@
+module answers
+
+# Exercise 7-4: the average of an empty list does not exist. Branching first
+# means never touching the division by zero.
+def average(xs: List[Int]): Double? =
+    if isEmpty(xs) then null else fold(xs, 0, fn a x -> a + x) / length(xs)
+
+let some = average([2, 3, 4])
+
+let none = average([])
+
+let safe = average([]) ?? 0.0

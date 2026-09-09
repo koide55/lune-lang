@@ -1,0 +1,9 @@
+module maybedivlet
+
+# Building the parts in an annotated let before branching works too.
+# quotient is a thunk, so on the y == 0 side the division never runs.
+def maybeDivLet(x: Int, y: Int): Double? =
+    let quotient: Double? = x / y
+    if y == 0 then null else quotient
+
+let viaLet = maybeDivLet(7, 0)

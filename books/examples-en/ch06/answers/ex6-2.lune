@@ -1,0 +1,10 @@
+module answers
+
+# Exercise 6-2: take just the names of the items costing 150 or more.
+record Item:
+    name: String
+    price: Int
+
+let items = [Item(name = "pen", price = 120), Item(name = "note", price = 200)]
+
+let pricey = map(filter(items, fn i: Item -> i.price >= 150), fn i: Item -> i.name)
