@@ -12,7 +12,7 @@ so in this edition use these three instead.
 | --- | --- |
 | grammar, keywords, operators, types, evaluation rules | [Appendix A: Language Reference Manual](appendix-a-reference.md) |
 | the prelude's functions (all 41, with types and examples) | [Appendix B: Standard Library Reference](appendix-b-stdlib.md) |
-| the diagnostic codes (all 30) | [Appendix C: The Diagnostic Codes](appendix-c-diagnostics.md) |
+| the diagnostic codes (all 31) | [Appendix C: The Diagnostic Codes](appendix-c-diagnostics.md) |
 | the CLI and REPL commands | [Appendix D: CLI and REPL Command Reference](appendix-d-cli.md) |
 | why it is designed this way | [Appendix E: The Design of Lune, and What Comes Next](appendix-e-design.md) |
 

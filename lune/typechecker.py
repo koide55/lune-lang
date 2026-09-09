@@ -163,6 +163,10 @@ class RecordInfo:
 class TypeEnv:
     parent: TypeEnv | None = None
     values: dict[str, ValueType] = field(default_factory=dict)
+    # Names declared with `var`, the only ones an assignment may target. Kept
+    # per scope so that shadowing works: a `let x` inside a block is immutable
+    # even when an outer `var x` exists.
+    mutable: set[str] = field(default_factory=set)
     constructors: dict[str, ConstructorInfo] = field(default_factory=dict)
     types: dict[str, TypeInfo] = field(default_factory=dict)
     records: dict[str, RecordInfo] = field(default_factory=dict)
@@ -177,8 +181,12 @@ class TypeEnv:
         else:
             self.warnings.append(diagnostic)
 
-    def define_value(self, name: str, typ: ValueType) -> None:
+    def define_value(self, name: str, typ: ValueType, mutable: bool = False) -> None:
         self.values[name] = typ
+        if mutable:
+            self.mutable.add(name)
+        else:
+            self.mutable.discard(name)
 
     def define_constructor(self, info: ConstructorInfo) -> None:
         self.constructors[info.name] = info
@@ -199,6 +207,14 @@ class TypeEnv:
         if self.parent is not None:
             return self.parent.lookup_value(name)
         raise LuneTypeError(t("typ.undefined-name", name=name))
+
+    def is_mutable(self, name: str) -> bool:
+        """Whether the *nearest* binding of `name` may be assigned to."""
+        if name in self.values:
+            return name in self.mutable
+        if self.parent is not None:
+            return self.parent.is_mutable(name)
+        return False
 
     def lookup_constructor(self, name: str) -> ConstructorInfo:
         if name in self.constructors:
@@ -377,7 +393,7 @@ def check_decl(decl: ast.Decl, env: TypeEnv) -> None:
         value_type = infer_expr(decl.value, env, annotated)
         expected = annotated if annotated is not None else value_type
         require_value_assignable(value_type, expected, t("ctx.var-annotation"))
-        env.define_value(decl.name, expected)
+        env.define_value(decl.name, expected, mutable=True)
         return
     raise LuneTypeError(t("typ.unsupported-declaration", kind=type(decl).__name__))
 
@@ -625,6 +641,16 @@ def infer_expr(expr: ast.Expr, env: TypeEnv, expected: ValueType | None = None) 
         if not isinstance(expr.target, ast.NameExpr):
             raise LuneTypeError(t("typ.only-name-assign"))
         target_type = ensure_type(env.lookup_value(expr.target.name))
+        # `let` is immutable; only a `var` may be assigned to. Without this the
+        # distinction existed in the specification and nowhere else (issue #117).
+        if not env.is_mutable(expr.target.name):
+            raise LuneTypeError(
+                t("typ.assign-to-immutable", name=expr.target.name),
+                "TYP0013",
+                expr.span,
+                t("label.not-assignable"),
+                [t("hint.declare-with-var", name=expr.target.name)],
+            )
         if expr.op == "=":
             value_type = ensure_type(infer_expr(expr.value, env))
             require_assignable(value_type, target_type, t("ctx.assignment"), expr.span)

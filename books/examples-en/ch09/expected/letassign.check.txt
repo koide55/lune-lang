@@ -1,0 +1,7 @@
+error[TYP0013]: cannot assign to `count`: it is bound with `let` and is immutable
+  --> letassign.lune:6:5
+  |
+6 |     count = count + 1
+  |     ^^^^^ this binding cannot be assigned to
+   = hint: declare it with `var count = ...` if it has to change
+   = help: run `lune explain TYP0013` for a detailed explanation

@@ -65,12 +65,25 @@ class Env:
     def __init__(self, parent: Env | None = None):
         self.parent = parent
         self.values: dict[str, Value] = {}
+        # Names declared with `var`. `--eval` skips the type check, so the
+        # evaluator has to refuse an assignment to a `let` itself, the way it
+        # refuses ill-typed operators (issue #117, and #94 before it).
+        self.mutable: set[str] = set()
 
-    def define(self, name: str, value: Value) -> None:
+    def define(self, name: str, value: Value, mutable: bool = False) -> None:
         self.values[name] = value
+        if mutable:
+            self.mutable.add(name)
+        else:
+            self.mutable.discard(name)
 
     def set(self, name: str, value: Value) -> None:
         if name in self.values:
+            if name not in self.mutable:
+                raise LuneRuntimeError(
+                    t("run.assign-to-immutable", name=name),
+                    hints=[t("hint.declare-with-var", name=name), t("hint.check-first")],
+                )
             self.values[name] = value
             return
         if self.parent is not None:
@@ -630,7 +643,7 @@ def eval_decl(decl: ast.Decl, env: Env) -> Value:
         bind_let(decl, env)
         return UNIT
     if isinstance(decl, ast.VarDecl):
-        env.define(decl.name, force_value(eval_expr(decl.value, env)))
+        env.define(decl.name, force_value(eval_expr(decl.value, env)), mutable=True)
         return UNIT
     if isinstance(decl, ast.TypeDecl):
         for ctor in decl.constructors:

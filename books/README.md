@@ -71,7 +71,7 @@ BOOK=lune-book-en books/tools/build_pdf.sh out.pdf
 | --- | --- | --- |
 | 本書の第1章 | 手を動かして1周する入門（`documents/TUTORIAL.md` は 2026-09-09 に本書へ統合） | 1時間 |
 | `documents/*_SPEC.md` | 実装者向けの規範仕様 | 参照用 |
-| `documents/ERROR_INDEX.md` | 全30診断コードの解説（`lune explain --index` で生成） | 参照用 |
+| `documents/ERROR_INDEX.md` | 全31診断コードの解説（`lune explain --index` で生成） | 参照用 |
 | **books/（本書）** | **体系的に学ぶ教科書 + リファレンスマニュアル付録** | 数日〜数週間 |
 
 本書は仕様書を「正」とし、各章の末尾で対応する仕様書を参照します。

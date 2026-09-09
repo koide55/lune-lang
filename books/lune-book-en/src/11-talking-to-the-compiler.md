@@ -48,7 +48,7 @@ The first three letters of a code give its **family**, and the family correspond
 
 Two things follow from the table. First, **the earlier the family, the earlier it catches you** — while an `LXL` error stands, the conversation about types has not even begun. Second, only `RUN` is at run time. A `RUN` diagnostic can appear even after `--check` passes (chapter 4's `crash()`, or division by zero): type checking guards a great deal, but not everything.
 
-There are 30 codes in all today. Appendix C has the list, and the full catalogue of explanations is `documents/ERROR_INDEX.md`.
+There are 31 codes in all today. Appendix C has the list, and the full catalogue of explanations is `documents/ERROR_INDEX.md`.
 
 ## 11.3 explain — an error number is for looking up
 
@@ -69,7 +69,7 @@ Each explanation has three parts — what happened, the smallest example that re
 ```text
 $ lune explain ZZZ9999
 error: no explanation for diagnostic code 'ZZZ9999'
-available codes: LAY0001, LAY0002, LXL0001, LXL0002, LXL0003, LXL0004, MOD0001, MOD0002, MOD0003, PRS0001, PRS0002, REC0001, REC0002, REC0003, REC0004, REC0005, REC0006, RUN0005, RUN0006, TYP0001, TYP0003, TYP0004, TYP0005, TYP0006, TYP0007, TYP0008, TYP0009, TYP0010, TYP0011, TYP0012
+available codes: LAY0001, LAY0002, LXL0001, LXL0002, LXL0003, LXL0004, MOD0001, MOD0002, MOD0003, PRS0001, PRS0002, REC0001, REC0002, REC0003, REC0004, REC0005, REC0006, RUN0005, RUN0006, TYP0001, TYP0003, TYP0004, TYP0005, TYP0006, TYP0007, TYP0008, TYP0009, TYP0010, TYP0011, TYP0012, TYP0013
 ```
 
 "An error number is not to be memorised; it is **the key to looking it up**" — that is how to use the code scheme.
@@ -198,7 +198,7 @@ The more of the types you write first, the better the questions the compiler ask
 | the parts of a diagnostic | severity / code / summary / location + label / hint / help; read summary → label → hint |
 | the order of hints | cause → remedy |
 | seven families | LAY, LXL, PRS, MOD, TYP, REC before running; only RUN at run time |
-| `lune explain` / `:explain` / `--index` | all 30 codes have an explanation; the number is a key for looking up |
+| `lune explain` / `:explain` / `--index` | all 31 codes have an explanation; the number is a key for looking up |
 | `lune fix` | when the hint is unique, the machine fixes it (repeatedly); `--write` / `--check` |
 | where fix stops | it does not touch fixes a machine cannot decide |
 | error-driven development | skeleton → `--check` → work through the witnesses as a TODO list |
@@ -248,7 +248,7 @@ The **rule** for who wins is written in exactly one place, `beats`, and `judge` 
 
 <details><summary>Answer</summary>
 
-For example `let x = $1` (LXL0001), `let a = (1` (a `PRS` code — an unclosed parenthesis), `1 + true` (TYP0003), `User(name = "X", name = "Y", age = 1)` (REC0004, chapter 6), and evaluating a binding containing `1 / 0` with `--eval` (RUN0006). A bonus: ending a file with an unclosed `###` gives `LXL0003` (unterminated block comment). Check your finds against the index of all 30 codes (appendix C / `ERROR_INDEX.md`).
+For example `let x = $1` (LXL0001), `let a = (1` (a `PRS` code — an unclosed parenthesis), `1 + true` (TYP0003), `User(name = "X", name = "Y", age = 1)` (REC0004, chapter 6), and evaluating a binding containing `1 / 0` with `--eval` (RUN0006). A bonus: ending a file with an unclosed `###` gives `LXL0003` (unterminated block comment). Check your finds against the index of all 31 codes (appendix C / `ERROR_INDEX.md`).
 
 </details>
 

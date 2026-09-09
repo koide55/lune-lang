@@ -4,7 +4,7 @@
 
 コンパイラ・評価器が発行する全診断コードの詳解カタログ。同じ内容を
 `lune explain <CODE>`、REPL の `:explain CODE`、Playground の explain ボタンでも読める。
-発行されうる全コードに詳解があることはテストで保証される（現在 30 コード）。日本語版: `ERROR_INDEX_JA.md`。
+発行されうる全コードに詳解があることはテストで保証される（現在 31 コード）。日本語版: `ERROR_INDEX_JA.md`。
 
 - [`LAY0001`](#lay0001) — inconsistent indentation
 - [`LAY0002`](#lay0002) — unmatched closing delimiter
@@ -36,6 +36,7 @@
 - [`TYP0010`](#typ0010) — cannot infer parameter type (warning)
 - [`TYP0011`](#typ0011) — recursive function needs a return type
 - [`TYP0012`](#typ0012) — named arguments are not supported here
+- [`TYP0013`](#typ0013) — assignment to an immutable binding
 
 ## LAY0001
 
@@ -569,3 +570,27 @@ let p = P(y = 1, x = 2)     # silently bound x = 1, y = 2 before this check
 How to fix:
 
 Pass the arguments positionally, in declaration order: `P(2, 1)`. Use a `record` if you want construction to be by field name.
+
+## TYP0013
+
+**assignment to an immutable binding**
+
+`let` binds a name once; `var` is the binding that may change afterwards.
+Assigning to anything else — a `let`, a function parameter, a `for` variable, a
+name bound by a pattern — is rejected.
+
+The check looks at the nearest binding, so shadowing works: a `let x` inside a
+block is immutable even when an outer `var x` exists.
+
+Example that triggers it:
+
+```lune
+let total =
+    let count = 0
+    count = count + 1      # count is a `let`
+    count
+```
+
+How to fix:
+
+Declare the name with `var` if it has to change, or compute the new value into a fresh `let` instead of overwriting the old one.

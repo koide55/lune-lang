@@ -204,7 +204,7 @@ Lune 固有の柱（他言語の教科書にない要素）:
 TUTORIAL.md 第17章を発展させ、独立した「診断リテラシー」の章にする。
 
 - 11.1 診断の解剖学: severity / コード / メッセージ / ソース断片 / ラベル / ヘルプ。読み順のコツ。
-- 11.2 コード体系: LAY / LXL / PRS / MOD / TYP / REC / RUN の7分類（全30コード。一覧は付録C）。
+- 11.2 コード体系: LAY / LXL / PRS / MOD / TYP / REC / RUN の7分類（全31コード。一覧は付録C）。
 - 11.3 `lune explain CODE` と REPL `:explain` — 「エラー番号は調べるためにある」。`lune explain --index`（ERROR_INDEX.md）の存在。
 - 11.4 did-you-mean と `lune fix`（`--write` / `--check`）: 機械が直せるエラーと直せないエラー。
 - 11.5 エラー駆動開発: 「まず型シグネチャと match の骨組みを書き、コンパイラの witness に導かれて埋める」ワークフローを1本の例で通す。
@@ -247,7 +247,7 @@ prelude 全関数を「型シグネチャ + 1行説明 + 遅延特性（無限�
 
 ### 付録C 診断コード一覧（〜8ページ）
 
-全30コードの表（コード / 分類 / 意味 / 本文の関連章）。詳細解説は `lune explain` と
+全31コードの表（コード / 分類 / 意味 / 本文の関連章）。詳細解説は `lune explain` と
 `documents/ERROR_INDEX.md` に委ね、本書は「地図」に徹する。生成元が同じなので、
 `lune explain --index` からの自動生成を検討（ERROR_INDEX が更新されれば追従できる）。
 

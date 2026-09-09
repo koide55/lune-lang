@@ -69,7 +69,7 @@ lune> :explain TYP0007        # REPL の中から
 ```text
 $ lune explain ZZZ9999
 error: no explanation for diagnostic code 'ZZZ9999'
-available codes: LAY0001, LAY0002, LXL0001, LXL0002, LXL0003, LXL0004, MOD0001, MOD0002, MOD0003, PRS0001, PRS0002, REC0001, REC0002, REC0003, REC0004, REC0005, REC0006, RUN0005, RUN0006, TYP0001, TYP0003, TYP0004, TYP0005, TYP0006, TYP0007, TYP0008, TYP0009, TYP0010, TYP0011, TYP0012
+available codes: LAY0001, LAY0002, LXL0001, LXL0002, LXL0003, LXL0004, MOD0001, MOD0002, MOD0003, PRS0001, PRS0002, REC0001, REC0002, REC0003, REC0004, REC0005, REC0006, RUN0005, RUN0006, TYP0001, TYP0003, TYP0004, TYP0005, TYP0006, TYP0007, TYP0008, TYP0009, TYP0010, TYP0011, TYP0012, TYP0013
 ```
 
 「エラー番号は覚えるものではなく、**調べるための鍵**」— これがコード体系の使い方です。
@@ -198,7 +198,7 @@ false : Bool
 | 診断の部品 | 重大度 / コード / 要約 / 場所+ラベル / hint / help。要約→ラベル→hint の順に読む |
 | hint の並び | 原因 → 対処 |
 | 7つの族 | LAY・LXL・PRS・MOD・TYP・REC は実行前、RUN だけ実行時 |
-| `lune explain` / `:explain` / `--index` | 全30コードに解説。番号は調べるための鍵 |
+| `lune explain` / `:explain` / `--index` | 全31コードに解説。番号は調べるための鍵 |
 | `lune fix` | hint が一意なら機械が直す（反復適用）。`--write` / `--check` |
 | fix の線引き | 機械が決められない修正には手を出さない |
 | エラー駆動開発 | 骨組み → `--check` → witness を TODO として消化 |
@@ -248,7 +248,7 @@ $ lune --eval tied ex11-3.lune
 
 <details><summary>解答</summary>
 
-例: `let x = $1`（LXL0001）、`let a = (1`（PRS 系 — 閉じていない括弧）、`1 + true`（TYP0003）、`User(name = "X", name = "Y", age = 1)`（REC0004、第6章）、`--eval` で `1 / 0` を含む束縛を評価（RUN0006）。ボーナス例: `###` を閉じずにファイルを終えると `LXL0003`（閉じていないブロックコメント）が出ます。全30コードの索引（付録C / `ERROR_INDEX_JA.md`）と照合してみてください。
+例: `let x = $1`（LXL0001）、`let a = (1`（PRS 系 — 閉じていない括弧）、`1 + true`（TYP0003）、`User(name = "X", name = "Y", age = 1)`（REC0004、第6章）、`--eval` で `1 / 0` を含む束縛を評価（RUN0006）。ボーナス例: `###` を閉じずにファイルを終えると `LXL0003`（閉じていないブロックコメント）が出ます。全31コードの索引（付録C / `ERROR_INDEX_JA.md`）と照合してみてください。
 
 </details>
 

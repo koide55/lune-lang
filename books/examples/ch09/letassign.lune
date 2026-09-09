@@ -1,0 +1,7 @@
+module letassign
+
+# let は不変。書き換えたいなら var で宣言する。
+let broken =
+    let count = 0
+    count = count + 1
+    count

@@ -167,6 +167,22 @@ def add(x: Int, y: Int): Int =
         self.assertEqual(session.submit("x").message, "2 : Int")
         self.assertEqual(session.submit(":trace bogus").kind, "error")
 
+    def test_session_refuses_assignment_to_a_let(self) -> None:
+        """Issue #117: the REPL used to accept `a = 2` and overwrite the binding."""
+        session = ReplSession()
+        self.assertEqual(session.submit("let a = 1").message, "ok")
+        with self.assertRaises(LuneTypeError) as context:
+            session.submit("a = 2")
+        self.assertEqual(context.exception.diagnostic.code, "TYP0013")
+        # and the binding really is untouched
+        self.assertEqual(session.submit("a").message, "1 : Int")
+
+    def test_session_allows_assignment_to_a_var(self) -> None:
+        session = ReplSession()
+        self.assertEqual(session.submit("var a = 1").message, "ok")
+        self.assertEqual(session.submit("a = 2").message, "2 : Int")
+        self.assertEqual(session.submit("a").message, "2 : Int")
+
     def test_interactive_loop_smoke(self) -> None:
         stdin = io.StringIO("1 + 2\n:q\n")
         stdout = io.StringIO()

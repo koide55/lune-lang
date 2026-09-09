@@ -1,0 +1,7 @@
+error[TYP0013]: `count` には代入できません: `let` の束縛は不変です
+  --> letassign.lune:6:5
+  |
+6 |     count = count + 1
+  |     ^^^^^ この束縛には代入できない
+   = hint: 書き換えるなら `var count = ...` で宣言してください
+   = help: 詳しくは `lune explain TYP0013 --lang ja` を実行してください

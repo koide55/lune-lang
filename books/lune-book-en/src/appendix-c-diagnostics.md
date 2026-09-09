@@ -51,6 +51,7 @@ You will never meet a code without an explanation. `test_every_emitted_code_has_
 | `TYP0010` | type checking | cannot infer a parameter's type (warning) | 3, 11 | — |
 | `TYP0011` | type checking | a recursive function needs a result type | 2, 3, 11 | 3 |
 | `TYP0012` | type checking | named arguments are not supported here | 11, 13 | — |
+| `TYP0013` | type checking | assignment to an immutable binding | 9, 11 | 9 |
 
 ## About the gaps in the numbering
 

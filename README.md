@@ -12,7 +12,7 @@
 > - **[Read the book](https://koide55.github.io/lune-lang/book/en/)** — *The Lune Programming Language*: a preface, 13 chapters and five appendices, every output in it taken from a real run ([PDF](https://koide55.github.io/lune-lang/book/en/lune-book.pdf)). Chapter 1 alone is a one-hour tour; chapter 4 is what the language is for.
 > - **[Try it in the browser](https://koide55.github.io/lune-lang/playground/)** — the implementation itself, running in the page. Nothing to install.
 > - **Install it**: `pip install lune-lang`, then `lune --repl`.
-> - **[Every diagnostic explained](https://koide55.github.io/lune-lang/playground/errors.html)** — all 30 codes, with the smallest example that produces each one.
+> - **[Every diagnostic explained](https://koide55.github.io/lune-lang/playground/errors.html)** — all 31 codes, with the smallest example that produces each one.
 >
 > The rest of this README is in Japanese; the book is the same material, and it is complete in both languages.
 
@@ -71,7 +71,7 @@ error[TYP0001]: 未定義の名前: cont
 ## 部員紹介 — 教えてくれる先輩たち
 
 - **真知(まち)部長** — `match` の抜けを絶対に見逃さない。「`Blue` のケースがありません」と**反例つき**で指摘してくる(TYP0007)。書きすぎれば「そのケースには到達しません」(TYP0009)。null も `T?` の型として扱わせ、`?.` / `??` / フロー narrowing まで仕込んでくる。厳しいが、指摘には全部理由がある。
-- **英美(えいみ)先輩** — 解説担当。全30の診断コードに「意味・発生する最小例・直し方」の詳解を用意している(`lune explain CODE`、REPL では `:explain`)。日本語でも英語でも説明できる(`--lang ja`)。全文は[診断カタログ](https://koide55.github.io/lune-lang/playground/errors.html)に貼り出されている。
+- **英美(えいみ)先輩** — 解説担当。全31の診断コードに「意味・発生する最小例・直し方」の詳解を用意している(`lune explain CODE`、REPL では `:explain`)。日本語でも英語でも説明できる(`--lang ja`)。全文は[診断カタログ](https://koide55.github.io/lune-lang/playground/errors.html)に貼り出されている。
 - **直美(なおみ)先輩** — 赤ペンと清書の担当。typo は did-you-mean の候補で機械的に直してくれるし(`lune fix`)、提出前には正準スタイルに整えてくれる(`lune fmt`)。整形で意味が変わっていないことを再パースで検証してから返す、と聞いてこの部の本気度を理解した。
 
 教わる流れは決まっている: **間違える → 読む → `explain` → `fix` → 確認**。チュートリアル第17章には「指定した診断をわざと出せたら正解」という逆転演習まであって、僕は初日にエラーの出し方から教わった。
