@@ -1,0 +1,12 @@
+module huge
+
+# range は遅延なので、幅そのものには代価がない。1 億要素のリストから
+# 5 個取り出す代価は、11 要素から 5 個取り出すのと同じである。
+let huge = range(1, 100000000)
+
+let firstFive = take(huge, 5)
+
+let multiplesOfSeven = take(filter(huge, fn x -> x % 7 == 0), 3)
+
+# filter は全部見ないと終われないが、takeWhile は最初の false で止まれる。
+let underTen = takeWhile(huge, fn x -> x < 10)

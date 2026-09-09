@@ -162,6 +162,15 @@ lune> fold([1, 2, 3, 4], 0, fn acc x -> acc + x)
 
 `fn x -> x * 2` is a small unnamed function — a lambda. It works without a type on the parameter because the compiler infers it from the type `map` expects (chapter 3).
 
+Now widen that `range` a great deal.
+
+```text
+lune> take(filter(range(1, 100000000), fn x -> x % 7 == 0), 5)
+(7 14 21 28 35) : List[Int]
+```
+
+Five multiples of seven out of a hundred-million-element list, and **no waiting**. Lune did not build a list of a hundred million and then take five from it; it grew the list exactly as far as taking five required. "Compute nothing until it is needed" is what Lune calls **lazy evaluation**, and it sits at the centre of the language. Chapter 4 is about nothing else.
+
 The tools are in place. Here is the temperature table, in a file `temperature.lune`:
 
 ```lune

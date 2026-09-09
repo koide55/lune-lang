@@ -253,10 +253,16 @@ eval_diag_is point.lune p expected/point.p.txt
 diag_is recursive.lune expected/recursive.check.txt
 eval_diag_is recursive.lune x expected/recursive.x.txt
 
+# 4.6節: range は遅延。この3本が返ること自体が検査で、1 億要素を作っていたら終わらない。
+check_ok huge.lune
+eval_is huge.lune firstFive expected/huge.firstFive.txt
+eval_is huge.lune multiplesOfSeven expected/huge.multiplesOfSeven.txt
+eval_is huge.lune underTen expected/huge.underTen.txt
+
 check_ok answers/ex4-2.lune
 eval_is answers/ex4-2.lune shortCircuited expected/ex4-2.shortCircuited.txt
 
-fmt_ok myif.lune trace_demo.lune box.lune point.lune recursive.lune answers/ex4-2.lune
+fmt_ok myif.lune trace_demo.lune box.lune point.lune recursive.lune huge.lune answers/ex4-2.lune
 
 # ----- 第5章 -----
 chapter ch05

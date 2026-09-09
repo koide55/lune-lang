@@ -454,7 +454,7 @@ def _builtin_length(args: list[Value]) -> Value:
         if not _is_constructor(value, "Cons"):
             raise LuneRuntimeError(t("run.expects", func="length", expected="List or String", got=repr(value)))
         count += 1
-        value = value.fields[1]
+        value = _forced_tail(value)
 
 
 def _builtin_map(args: list[Value]) -> Value:
@@ -482,7 +482,7 @@ def _builtin_filter(args: list[Value]) -> Value:
         tail = items.fields[1]
         if require_bool(apply_value(predicate, [head]), t("ctx.predicate-of", func="filter")):
             return DataValue("Cons", [head, LazyValue(lambda tail=tail, predicate=predicate: _builtin_filter([tail, predicate]))])
-        items = tail
+        items = _forced_tail(items)
 
 
 def _builtin_fold(args: list[Value]) -> Value:
@@ -496,7 +496,7 @@ def _builtin_fold(args: list[Value]) -> Value:
         if not _is_constructor(items, "Cons"):
             raise LuneRuntimeError(t("run.expects", func="fold", expected="List", got=repr(items)))
         acc = apply_value(function, [acc, items.fields[0]])
-        items = items.fields[1]
+        items = _forced_tail(items)
 
 
 def _builtin_take(args: list[Value]) -> Value:
@@ -521,18 +521,30 @@ def _builtin_drop(args: list[Value]) -> Value:
             return DataValue("Nil", [])
         if not _is_constructor(items, "Cons"):
             raise LuneRuntimeError(t("run.expects", func="drop", expected="List", got=repr(items)))
-        items = items.fields[1]
+        items = _forced_tail(items)
         count -= 1
     return items
 
 
 def _builtin_range(args: list[Value]) -> Value:
+    # Both ends are forced here rather than inside the spine, so a bad argument
+    # still fails at the call: `range(crash(), 5)` explodes on the call, not
+    # when someone eventually asks for the first element.
     start = int(force_value(args[0]))
     end = int(force_value(args[1]))
-    result: Value = DataValue("Nil", [])
-    for value in reversed(range(start, end)):
-        result = DataValue("Cons", [value, result])
-    return result
+    return _range_from(start, end)
+
+
+def _range_from(start: int, end: int) -> Value:
+    # `range` is a producer like naturalsFrom/iterate/repeat, and lazy for the
+    # same reason: the cost of the list should follow what the consumer asks
+    # for, not the width of the interval. Building it eagerly made
+    # `head(filter(range(1, n), p))` linear in `n` and cost ~192 bytes an
+    # element, so a range wide enough to be interesting ran out of memory
+    # before the predicate saw its first value.
+    if start >= end:
+        return DataValue("Nil", [])
+    return DataValue("Cons", [start, LazyValue(lambda: _range_from(start + 1, end))])
 
 
 def _builtin_iterate(args: list[Value]) -> Value:
@@ -586,7 +598,7 @@ def _builtin_drop_while(args: list[Value]) -> Value:
             raise LuneRuntimeError(t("run.expects", func="dropWhile", expected="List", got=repr(items)))
         if not require_bool(apply_value(predicate, [items.fields[0]]), t("ctx.predicate-of", func="dropWhile")):
             return items
-        items = items.fields[1]
+        items = _forced_tail(items)
 
 
 def _builtin_zip(args: list[Value]) -> Value:
@@ -963,7 +975,7 @@ def eval_for(expr: ast.ForExpr, env: Env) -> Value:
         for name, bound in bindings.items():
             body_env.define(name, bound)
         eval_block(expr.body, body_env)
-        current = force_value(current.fields[1])
+        current = _forced_tail(current)
 
 
 def eval_match(expr: ast.MatchExpr, env: Env) -> Value:
@@ -1104,6 +1116,27 @@ def force_value(value: Value) -> Value:
     while isinstance(value, Thunk | LazyValue):
         value = value.force()
     return value
+
+
+def _forced_tail(cons: DataValue) -> Value:
+    """Force a list's tail to WHNF and write the result back into the cell.
+
+    Forcing alone does not free anything: the cell still points at the thunk,
+    and the thunk holds both its memoised value and the closure that produced
+    it. Walking a lazy spine therefore retains three objects per element where
+    a strict list retains one. Overwriting the field lets the wrapper and its
+    closure be collected as the walk moves past them, which is what keeps a
+    lazy `range` from costing several times a strict one to traverse.
+
+    Thunks memoise, so the swap is invisible — forcing the cell again would
+    have returned this same value. A force that raises is deliberately left in
+    place, so the memoised failure is raised again on the next visit.
+    """
+    tail = cons.fields[1]
+    if isinstance(tail, Thunk | LazyValue):
+        tail = force_value(tail)
+        cons.fields[1] = tail
+    return tail
 
 
 def deep_force(value: Value) -> Value:
@@ -1352,7 +1385,7 @@ def _try_render_list(value: DataValue) -> str | None:
         if not isinstance(current, DataValue) or current.constructor != "Cons" or len(current.fields) != 2:
             return None
         items.append(format_value(current.fields[0]))
-        current = current.fields[1]
+        current = _forced_tail(current)
 
 
 def _show_value(value: Value) -> str:

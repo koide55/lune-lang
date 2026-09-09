@@ -1,0 +1,13 @@
+module huge
+
+# `range` is lazy, so the width itself is free: taking 5 out of a hundred
+# million costs what taking 5 out of eleven costs.
+let huge = range(1, 100000000)
+
+let firstFive = take(huge, 5)
+
+let multiplesOfSeven = take(filter(huge, fn x -> x % 7 == 0), 3)
+
+# `filter` cannot finish without looking at everything; `takeWhile` stops at
+# the first false.
+let underTen = takeWhile(huge, fn x -> x < 10)
