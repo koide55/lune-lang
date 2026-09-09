@@ -1,0 +1,7 @@
+module answers
+
+# Exercise 1-2: Celsius to Fahrenheit, 0-100 degrees in steps of 20.
+def toFahrenheit(c: Int): Double =
+    c * 9 / 5 + 32.0
+
+let table = map(range(0, 6), fn i -> (i * 20, toFahrenheit(i * 20)))

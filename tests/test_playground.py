@@ -42,6 +42,7 @@ class PlaygroundTests(unittest.TestCase):
         html = (ROOT / "index.html").read_text(encoding="utf-8")
         self.assertIn('href="book/"', html)
         self.assertIn('href="book/lune-book.pdf"', html)
+        self.assertIn('href="book/en/"', html)  # the English edition
 
         readme = (ROOT / "README.md").read_text(encoding="utf-8")
         self.assertIn("https://koide55.github.io/lune-lang/book/", readme)
@@ -54,11 +55,12 @@ class PlaygroundTests(unittest.TestCase):
         """
         workflow = (ROOT / ".github" / "workflows" / "pages.yml").read_text(encoding="utf-8")
         self.assertIn("dest: ${{ github.workspace }}/book", workflow)
+        self.assertIn("dest: ${{ github.workspace }}/book/en", workflow)
 
-        # The deploy hands that directory to the shared build action, which is
-        # what decides the two file names the site links to.
+        # The deploy hands those directories to the shared build action, which
+        # is what decides the file names the site links to.
         action = (ROOT / ".github" / "actions" / "build-book" / "action.yml").read_text(encoding="utf-8")
-        self.assertIn('mdbook build books/lune-book --dest-dir "${{ inputs.dest }}"', action)
+        self.assertIn('mdbook build "${{ inputs.book }}" --dest-dir "${{ inputs.dest }}"', action)
         self.assertIn('build_pdf.sh "${{ inputs.dest }}/lune-book.pdf"', action)
 
     def test_published_pages_contain_no_mojibake(self) -> None:

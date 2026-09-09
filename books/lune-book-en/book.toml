@@ -1,0 +1,14 @@
+[book]
+title = "The Lune Programming Language"
+description = "A lazy functional language whose compiler teaches you"
+authors = ["Hiroshi Koide"]
+language = "en"
+src = "src"
+
+[output.html]
+additional-css = ["theme/pdf.css", "theme/playground.css"]
+additional-js = ["theme/playground.js"]
+# Published under /book/en/ on GitHub Pages (.github/workflows/pages.yml).
+# site-url is only used for the 404 page's absolute links.
+site-url = "/lune-lang/book/en/"
+git-repository-url = "https://github.com/koide55/lune-lang"

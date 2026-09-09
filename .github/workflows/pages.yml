@@ -34,6 +34,13 @@ jobs:
         with:
           dest: ${{ github.workspace }}/book
 
+      # The English edition, under /book/en/. No PDF while it is unfinished.
+      - uses: ./.github/actions/build-book
+        with:
+          book: books/lune-book-en
+          dest: ${{ github.workspace }}/book/en
+          pdf: "false"
+
       - uses: actions/upload-pages-artifact@v3
         with:
           # The site is the repo itself: landing page at /, playground/ fetches
