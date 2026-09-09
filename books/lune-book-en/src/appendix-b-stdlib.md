@@ -106,6 +106,8 @@ lune> zipWith(xs, xs, fn a: Int b: Int -> a * b)
 
 **Only `length` and `fold` cannot be used on an infinite list**, because reaching the end is their job. Everything else is safe: `map` or `filter` over an infinite list computes only as much as is later taken out (chapters 4 and 8). `drop` forces only the cells it discards, so it is safe too — but what it returns is still infinite, so keep a `take` in front of any display.
 
+`range` shows `—` in the infinite column (it takes no list), but **the list it returns is lazy**: the spine is built only as far as it is consumed, so `take(range(1, 100000000), 5)` costs the same as `take(range(1, 11), 5)`. The width itself is free (§4.6).
+
 Out-of-range and empty cases return plain values rather than raising.
 
 ```text
@@ -212,7 +214,7 @@ seq a b          # evaluate a, then return b
 deepForce x      # evaluate x all the way down
 ```
 
-They are the tools for controlling the order and depth of evaluation, covered in §4.6.
+They are the tools for controlling the order and depth of evaluation, covered in §4.7.
 
 ## Where this appendix comes from
 

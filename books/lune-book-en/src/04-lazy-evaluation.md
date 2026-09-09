@@ -197,7 +197,64 @@ The second `bad` produced the same error, but the counter stayed at 1 — **the 
 
 Because of this, a Lune binding gives the same result (the same value, or the same failure) however often and whenever it is read. Nothing changes with the timing of the read, which is why laziness does not break the meaning of a program.
 
-## 4.6 The strictness toolbox
+## 4.6 Only what you use — what laziness buys
+
+So far we have looked at the *machinery* of laziness. This section is about what the machinery gives you.
+
+Take `range(start, end)` from chapter 1 and call it with a slightly unreasonable width.
+
+```text
+lune> let huge = range(1, 100000000)
+ok
+lune> take(huge, 5)
+(1 2 3 4 5) : List[Int]
+lune> take(filter(huge, fn x -> x % 7 == 0), 3)
+(7 14 21) : List[Int]
+```
+
+Five elements out of a hundred-million-element list, then three multiples of seven. **Both come back instantly**, and neither costs any memory.
+
+The trick is the one from §4.1. `range` does not build a hundred million cells and then hand them over; it returns **one cell and a promise to make the rest**. `filter` and `take` have the same shape, so the moment `take(..., 3)` has its third element, every promise beyond it is left unforced. What is never built costs neither time nor memory.
+
+It is not "build a list of a hundred million and then take five". It is "`range` grows exactly as far as taking five requires". **The consumer decides how long the list is.**
+
+Let `tick()` from §4.5 do the counting.
+
+```text
+lune> let xs = map(range(1, 100000000), fn x -> tick())
+ok
+lune> tickCount()
+0 : Int
+lune> take(xs, 3)
+(1 2 3) : List[Int]
+lune> tickCount()
+3 : Int
+```
+
+A `map` over a hundred million elements, evaluated **three** times — and zero times until something asked. In a strict language that expression means a hundred million calls and several gigabytes. Here it meant three calls.
+
+### The boundary — a computation that needs everything still walks everything
+
+Laziness does not make work disappear. It **defers the demand**. When an answer genuinely needs every element, the bill arrives in full.
+
+```text
+lune> length(filter(huge, fn x -> x < 10))
+```
+
+That took about **seven minutes** here (Ctrl-C is a reasonable response). The answer is `9`. `filter` cannot know that nothing beyond 9 matches without walking to the hundred-millionth element, and `length` counts to the end, so the whole list gets walked. This is not a weakness of the implementation but the **correct consequence** of lazy evaluation: the same expression in Haskell walks just as far.
+
+The condition here, `x < 10`, is monotone over an ascending list, so what we actually meant was "stop when it stops holding". There is a different function for saying that.
+
+```text
+lune> takeWhile(huge, fn x -> x < 10)
+(1 2 3 4 5 6 7 8 9) : List[Int]
+```
+
+`takeWhile` gives up at the first `false`, so the **whole** list comes back at once. `filter` can never finish without looking at everything; `takeWhile` can finish. In a lazy world that distinction shows up as a difference in speed.
+
+For the same reason, do not ask the REPL to display `huge` itself: displaying demands every element. Put a `take` in front of anything you print. This test — **does the answer need every element?** — is treated properly in §8.5, against genuinely infinite lists, because a range wide enough is the same thing in practice.
+
+## 4.7 The strictness toolbox
 
 Lazy by default. But there are moments when you want it computed now, and Lune provides explicit opt-outs, graded by scope.
 
@@ -294,7 +351,7 @@ lune> force delayed
 
 `Int` and `Lazy[Int]` are different types. Writing `Lazy[T]` as a function's result or a field of a data structure puts "this may not have been computed yet" into the type signature, and whoever receives it has to open it explicitly with `force`. It promotes implicit laziness into a contract.
 
-## 4.7 Bottomless recursion — RUN0005
+## 4.8 Bottomless recursion — RUN0005
 
 Here is the notorious trouble spot of lazy evaluation: what happens when you define something in terms of itself?
 
@@ -348,7 +405,7 @@ lune> fact(5)
 
 The body of a `def` does not run until it is called, so `fact(n - 1)` does not force the definition of `fact`. It is recursive *values* that cannot exist.
 
-## 4.8 Living with laziness
+## 4.9 Living with laziness
 
 The tools are all here. To finish, some guidance on when to use what.
 
@@ -389,6 +446,8 @@ And when in doubt, **ask `:thunks` and `:trace`**. The instruments you used in t
 | Thunk | the container of an unevaluated expression: `unevaluated` / `evaluated` / `failed` |
 | Forcing | making a thunk evaluate; happens wherever a value is looked at |
 | Memoisation | evaluated at most once; both success and failure are remembered |
+| Only what you use | the consumer decides the length; the width of a `range` is free |
+| Does it need everything? | if it does, it walks it all (`length`, `fold`, display); if not, `take` / `takeWhile` |
 | `:thunks` / `:trace` | look at the state / narrate the forcing. When in doubt, these |
 | `strict let` / strict parameters / strict fields | opting out of laziness |
 | `seq` / `deepForce` | controlling the order and the depth of evaluation |
@@ -477,7 +536,7 @@ It succeeds. `length` counts only the **spine** of the list (the chain of cells)
 
 <details><summary>Answer</summary>
 
-The smallest reproduction is a file containing `let x = x + 1`, run with `--eval x` (§4.7). `--check` gives `TYP0001` because the type checker works by the rule that the name being defined is not yet in scope while its right-hand side is checked, so self-reference is rejected at the door as an undefined name. The type checker prevents cycles of names statically; the evaluator detects a cycle that appears at run time with `RUN0005`. Two layers of defence.
+The smallest reproduction is a file containing `let x = x + 1`, run with `--eval x` (§4.8). `--check` gives `TYP0001` because the type checker works by the rule that the name being defined is not yet in scope while its right-hand side is checked, so self-reference is rejected at the door as an undefined name. The type checker prevents cycles of names statically; the evaluator detects a cycle that appears at run time with `RUN0005`. Two layers of defence.
 
 </details>
 

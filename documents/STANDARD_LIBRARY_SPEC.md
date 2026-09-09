@@ -182,7 +182,7 @@ def cycle[T](list: List[T]): List[T]
 - `fold` は左畳み込み。
 - `take(list, count)` は先頭から最大 `count` 個を返す。`count <= 0` なら `Nil`。
 - `drop(list, count)` は先頭から最大 `count` 個を捨てた残りを返す。`count <= 0` なら元のリストを返す。
-- `range(start, end)` は `start <= x < end` の整数リストを返す。
+- `range(start, end)` は `start <= x < end` の整数リストを返す。**遅延**であり、spine は消費された分だけ構築される（下記「遅延評価」）。`start` / `end` は呼び出し時に評価する。
 - `iterate(f, x)` は無限リスト `[x, f(x), f(f(x)), ...]` を返す。
 - `repeat(x)` は無限リスト `[x, x, x, ...]` を返す。
 - `naturalsFrom(n)` は無限リスト `[n, n+1, n+2, ...]` を返す。
@@ -202,10 +202,13 @@ def cycle[T](list: List[T]): List[T]
 - `take(list, 0)` は `list` を評価しない。
 - `take` は返したリストの tail を遅延する。
 - `drop` は捨てる範囲の spine を評価するが、残りの要素値は評価しない。
+- `range` は spine を遅延して構築する。`take(range(1, n), k)` の代価は `k` に比例し、`n` に依存しない。したがって `range` の幅は、消費されない限りコストを持たない。
+- リストの spine を歩く処理系側の関数は、force した tail をセルへ書き戻してよい（path compression）。サンクはメモ化されるため意味は変わらず、走査済みのサンクとその閉包を解放できる。失敗したサンクは書き戻さない（失敗のメモ化を保つため）。
 
 無限リスト:
 
 - `Cons` の tail が遅延であるため、`List` はそのまま無限列（Stream）として使える。専用の `Stream` 型は設けない。
+- `range` は有限だが遅延なので、幅が十分大きければ無限リストと同じ注意が要る（`length` / `fold` / 表示に渡さない）。
 - `iterate` / `repeat` / `naturalsFrom` は無限リストを返す。`take` / `map` / `filter` / `takeWhile` / `zip` / `zipWith` は遅延して消費するため、無限リストに対しても終了する（例: `take(naturalsFrom(1), 5)` は `(1 2 3 4 5)`）。
 - `cycle` は有限リストを無限リストへ変換する。
 - `fold` / `length` はリストを消費し切るため、無限リストに使うと停止しない。`dropWhile` は predicate が無限に真であり続けると停止しない。`drop` は捨てる範囲の spine しか評価しない（上記）ので無限リストにも使えるが、返るリストは依然として無限である。

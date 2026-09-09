@@ -134,6 +134,8 @@ The prompt does not come back (interrupt with Ctrl-C). Note that it is not an er
 
 Telling them apart is simple: **does producing the answer require every element?** `take`, `map`, `filter`, `takeWhile`, `zip` do not (they preserve laziness). `fold` and `length` do. `drop(xs, n)` forces only the `n` cells it discards, so it is safe on an infinite list — `take(drop(naturalsFrom(1), 5), 3)` gives `(6 7 8)` — but the list it hands back is still infinite, so keep a `take` in front of the display. `filter` has a trap of its own: if no element ever satisfies the condition again, it keeps running while looking for the next one.
 
+The same test applies to **finite** lists. `range` is lazy too (§4.6), so while `range(1, 100000000)` is not infinite, handing it to `length` or `fold` costs a wait not meaningfully different from one that never ends. Whether to put a `take` or `takeWhile` in front is decided by **whether the answer needs every element**, not by whether the list is infinite.
+
 ## 8.6 Worked examples — thinking in infinite lists
 
 **The Fibonacci sequence.** Read it as "keep advancing the state `(a, b)` to `(b, a+b)`", which is what `iterate` is for. Here is `fib.lune`:

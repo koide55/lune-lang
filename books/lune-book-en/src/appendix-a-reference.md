@@ -285,7 +285,7 @@ Lune is **lazy by default**.
 
 A thunk memoises **both success and failure**. Forcing a thunk that has failed once produces the same error again (the computation is not repeated).
 
-**Re-entrant evaluation is a runtime error** (`RUN0005`). A value that depends on its own result, such as `let x = x + 1`, comes back to itself the moment it is forced, so it is reported on the spot rather than waited on (§4.7).
+**Re-entrant evaluation is a runtime error** (`RUN0005`). A value that depends on its own result, such as `let x = x + 1`, comes back to itself the moment it is forced, so it is reported on the spot rather than waited on (§4.8).
 
 Running `--check` on `let x = x + 1` reports `TYP0001` (undefined name `x`) instead, because the `x` on the right is resolved before that `let` enters the environment. `RUN0005` appears when `--eval` actually forces it — an example of the same code producing different diagnostics at the checking and running stages.
 

@@ -5,7 +5,16 @@ import io
 import pathlib
 import unittest
 
-from lune.evaluator import DataValue, eval_source, force_value, format_value
+from lune.evaluator import (
+    DataValue,
+    LazyValue,
+    LuneRuntimeError,
+    Thunk,
+    ThunkState,
+    eval_source,
+    force_value,
+    format_value,
+)
 from lune.typechecker import INT, STRING, Type, check_source
 
 
@@ -317,6 +326,129 @@ let z = zip(naturalsFrom(1), naturalsFrom(1))
         )
         self.assertEqual(env.lookup_value("a"), Type("List", (INT,)))
         self.assertEqual(env.lookup_value("z"), Type("List", (Type("Tuple", (INT, INT)),)))
+
+
+class LazyRangeTests(unittest.TestCase):
+    """`range` builds its spine on demand, like the other producers.
+
+    It used to build every cell up front, which made the width of the interval
+    the cost of the call: `head(filter(range(1, n), p))` was linear in `n` and
+    a range wide enough to be interesting ran out of memory. Every test here
+    is written so that it cannot pass if the spine is built eagerly — the
+    ranges are far too wide to materialise.
+    """
+
+    WIDE = 100_000_000
+
+    def value_of(self, source: str, name: str):
+        return force_value(eval_source(source).lookup_raw(name))
+
+    def test_a_wide_range_is_free_until_it_is_consumed(self) -> None:
+        self.assertEqual(format_value(self.value_of(f"let xs = take(range(1, {self.WIDE}), 5)\n", "xs")), "(1 2 3 4 5)")
+
+    def test_filter_over_a_wide_range_yields_its_first_matches(self) -> None:
+        source = f"let xs = take(filter(range(1, {self.WIDE}), fn x: Int -> x % 7 == 0), 3)\n"
+        self.assertEqual(format_value(self.value_of(source, "xs")), "(7 14 21)")
+
+    def test_take_while_finishes_over_a_wide_range(self) -> None:
+        """The whole result, not just its head — takeWhile stops at the first false."""
+        source = f"let xs = takeWhile(range(1, {self.WIDE}), fn x: Int -> x < 10)\n"
+        self.assertEqual(format_value(self.value_of(source, "xs")), "(1 2 3 4 5 6 7 8 9)")
+
+    def test_head_and_drop_do_not_walk_the_whole_range(self) -> None:
+        self.assertEqual(
+            format_value(self.value_of(f"let x = head(drop(range(1, {self.WIDE}), 4))\n", "x")),
+            "Some(5)",
+        )
+
+    def test_the_spine_is_only_built_as_far_as_it_is_asked_for(self) -> None:
+        """tick() counts the evaluations: three elements taken, three ticks."""
+        # `before` and `after` are separate bindings on purpose: one binding
+        # read twice would answer from its memo, not from the counter.
+        source = (
+            f"let xs = take(map(range(1, {self.WIDE}), fn x: Int -> tick()), 3)\n"
+            "let before = tickCount()\n"
+            "let after = tickCount()\n"
+        )
+        env = eval_source(source)
+        self.assertEqual(force_value(env.lookup_raw("before")), 0, "binding alone must evaluate nothing")
+        self.assertEqual(format_value(env.lookup_raw("xs")), "(1 2 3)")
+        self.assertEqual(force_value(env.lookup_raw("after")), 3)
+
+    def test_the_finite_meaning_of_range_is_unchanged(self) -> None:
+        for source, expected in (
+            ("let xs = range(1, 5)\n", "(1 2 3 4)"),
+            ("let xs = range(5, 1)\n", "()"),
+            ("let xs = range(-2, 2)\n", "(-2 -1 0 1)"),
+            ("let xs = range(3, 3)\n", "()"),
+        ):
+            with self.subTest(source=source):
+                self.assertEqual(format_value(self.value_of(source, "xs")), expected)
+
+    def test_a_lazy_range_equals_the_literal_list(self) -> None:
+        self.assertIs(self.value_of("let same = range(1, 4) == [1, 2, 3]\n", "same"), True)
+
+    def test_consuming_functions_still_consume(self) -> None:
+        self.assertEqual(self.value_of("let n = length(range(1, 1000))\n", "n"), 999)
+        self.assertEqual(self.value_of("let n = fold(range(1, 101), 0, fn a: Int -> fn b: Int -> a + b)\n", "n"), 5050)
+
+    def test_the_ends_are_still_evaluated_at_the_call(self) -> None:
+        """`range(crash(), 5)` must fail at the call, not at the first element."""
+        with self.assertRaises(LuneRuntimeError):
+            eval_source("let xs = range(crash(), 5)\n").lookup("xs")
+
+
+class SpineCompressionTests(unittest.TestCase):
+    """Walking a lazy spine writes the forced tail back into the cell.
+
+    Without it the cell keeps pointing at the thunk, which keeps pointing at
+    both the memoised value and the closure that produced it — three objects
+    per element where a strict list holds one. That made a lazy `range` cost
+    several times a strict one to traverse, which would have been a bad trade
+    for the laziness.
+    """
+
+    def spine(self, value) -> list[object]:
+        """The raw tail fields, without forcing anything."""
+        cells = []
+        current = force_value(value)
+        while isinstance(current, DataValue) and current.constructor == "Cons":
+            cells.append(current.fields[1])
+            current = force_value(current.fields[1])
+        return cells
+
+    def test_a_walked_spine_holds_no_thunks(self) -> None:
+        env = eval_source("let xs = range(1, 20)\nlet n = length(xs)\n")
+        self.assertEqual(force_value(env.lookup_raw("n")), 19)
+        tails = self.spine(env.lookup_raw("xs"))
+        self.assertEqual(len(tails), 19)
+        self.assertFalse(
+            [tail for tail in tails if isinstance(tail, Thunk | LazyValue)],
+            "length() walked the whole spine, so no cell should still hold a thunk",
+        )
+
+    def test_an_unwalked_spine_keeps_its_thunk(self) -> None:
+        """The compression is a side effect of walking, not eager evaluation."""
+        env = eval_source("let xs = range(1, 20)\nlet first = head(xs)\n")
+        force_value(env.lookup_raw("first"))
+        head_cell = force_value(env.lookup_raw("xs"))
+        self.assertIsInstance(head_cell.fields[1], Thunk | LazyValue)
+
+    def test_compression_does_not_change_what_is_seen(self) -> None:
+        env = eval_source("let xs = range(1, 6)\nlet a = length(xs)\nlet b = fold(xs, 0, fn p: Int -> fn q: Int -> p + q)\n")
+        self.assertEqual(force_value(env.lookup_raw("a")), 5)
+        self.assertEqual(force_value(env.lookup_raw("b")), 15)
+        self.assertEqual(format_value(env.lookup_raw("xs")), "(1 2 3 4 5)")
+
+    def test_a_failing_tail_is_left_in_place(self) -> None:
+        """A failed thunk is not written back, so the memoised failure survives."""
+        env = eval_source("let xs = Cons(1, crash())\n")
+        for _ in range(2):
+            with self.assertRaises(LuneRuntimeError):
+                format_value(env.lookup_raw("xs"))
+        cell = force_value(env.lookup_raw("xs"))
+        self.assertIsInstance(cell.fields[1], Thunk | LazyValue)
+        self.assertEqual(cell.fields[1].state, ThunkState.FAILED)
 
 
 if __name__ == "__main__":
