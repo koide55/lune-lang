@@ -319,6 +319,26 @@ let p = P(y = 1, x = 2)     # silently bound x = 1, y = 2 before this check
             "Pass the arguments positionally, in declaration order: `P(2, 1)`. "
             "Use a `record` if you want construction to be by field name.",
         ),
+        _e(
+            "TYP0013",
+            "assignment to an immutable binding",
+            """
+`let` binds a name once; `var` is the binding that may change afterwards.
+Assigning to anything else — a `let`, a function parameter, a `for` variable, a
+name bound by a pattern — is rejected.
+
+The check looks at the nearest binding, so shadowing works: a `let x` inside a
+block is immutable even when an outer `var x` exists.
+            """,
+            """
+let total =
+    let count = 0
+    count = count + 1      # count is a `let`
+    count
+            """,
+            "Declare the name with `var` if it has to change, or compute the new "
+            "value into a fresh `let` instead of overwriting the old one.",
+        ),
         # --- records ---
         _e(
             "REC0001",

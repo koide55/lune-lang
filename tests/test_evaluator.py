@@ -974,5 +974,65 @@ class OperandTypeTests(unittest.TestCase):
                     self.assertNotIn(python_word, text)
 
 
+class ImmutableBindingTests(unittest.TestCase):
+    """`--eval` skips the type check, so the evaluator refuses too (issue #117).
+
+    The static answer is `TYP0013`; here it is the generic `RUN0006` with a
+    hint pointing at `lune --check`, the same shape PR #98 settled on.
+    """
+
+    def value_of(self, source: str, name: str):
+        env = eval_source(source)
+        return force_value(env.lookup_raw(name))
+
+    def assert_refused(self, source: str) -> None:
+        with self.assertRaises(LuneRuntimeError) as context:
+            self.value_of(source, "total")
+        diagnostic = context.exception.diagnostic
+        self.assertEqual(diagnostic.code, "RUN0006")
+        self.assertIn("count", diagnostic.message)
+        self.assertTrue(
+            any("var count" in hint for hint in diagnostic.hints),
+            diagnostic.hints,
+        )
+
+    def test_refuses_assignment_to_a_let(self) -> None:
+        self.assert_refused("let total =\n    let count = 0\n    count = count + 1\n    count\n")
+
+    def test_refuses_compound_assignment_to_a_let(self) -> None:
+        self.assert_refused("let total =\n    let count = 0\n    count += 1\n    count\n")
+
+    def test_allows_assignment_to_a_var(self) -> None:
+        source = """
+let total =
+    var count = 0
+    count = count + 1
+    count += 2
+    count
+"""
+        self.assertEqual(self.value_of(source, "total"), 3)
+
+    def test_inner_let_shadows_an_outer_var(self) -> None:
+        source = """
+var count = 0
+
+let total =
+    let count = 1
+    count = count + 1
+    count
+"""
+        self.assert_refused(source)
+
+    def test_an_outer_var_is_assignable_from_an_inner_scope(self) -> None:
+        source = """
+let total =
+    var count = 0
+    for x in [1, 2, 3]:
+        count = count + x
+    count
+"""
+        self.assertEqual(self.value_of(source, "total"), 6)
+
+
 if __name__ == "__main__":
     unittest.main()

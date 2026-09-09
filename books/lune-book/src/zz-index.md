@@ -12,7 +12,7 @@
 | --- | --- |
 | 文法・キーワード・演算子・型・評価規則 | [付録A 言語リファレンスマニュアル](appendix-a-reference.md) |
 | prelude の関数（全41個の型と例） | [付録B 標準ライブラリリファレンス](appendix-b-stdlib.md) |
-| 診断コード（全30個） | [付録C 診断コード一覧](appendix-c-diagnostics.md) |
+| 診断コード（全31個） | [付録C 診断コード一覧](appendix-c-diagnostics.md) |
 | CLI と REPL のコマンド | [付録D CLI・REPL コマンドリファレンス](appendix-d-cli.md) |
 | なぜそう設計されているのか | [付録E Lune の設計と、これから](appendix-e-design.md) |
 

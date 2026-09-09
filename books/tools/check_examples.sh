@@ -380,6 +380,7 @@ check_ok io.lune
 eval_is io.lune run expected/io.run.txt
 
 diag_is badfor.lune expected/badfor.check.txt
+diag_is letassign.lune expected/letassign.check.txt
 
 check_ok answers/ex9-1.lune
 eval_is answers/ex9-1.lune product expected/ex9-1.product.txt
@@ -387,7 +388,7 @@ eval_is answers/ex9-1.lune product expected/ex9-1.product.txt
 check_ok answers/ex9-2.lune
 eval_is answers/ex9-2.lune run expected/ex9-2.run.txt
 
-fmt_ok counter.lune fortotal.lune io.lune badfor.lune answers/ex9-1.lune answers/ex9-2.lune
+fmt_ok counter.lune fortotal.lune io.lune badfor.lune letassign.lune answers/ex9-1.lune answers/ex9-2.lune
 
 # ----- 第10章 -----
 chapter ch10

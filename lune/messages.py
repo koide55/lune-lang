@@ -231,6 +231,19 @@ MESSAGES: dict[str, tuple[str, str]] = {
     ),
     "typ.for-iterable": ("for iterable must be List, got {type}", "for の対象は List でなければなりませんが、{type} でした"),
     "label.for-iterable": ("iterable must be List[T]", "走査対象は List[T] でなければならない"),
+    "typ.assign-to-immutable": (
+        "cannot assign to `{name}`: it is bound with `let` and is immutable",
+        "`{name}` には代入できません: `let` の束縛は不変です",
+    ),
+    "label.not-assignable": ("this binding cannot be assigned to", "この束縛には代入できない"),
+    "hint.declare-with-var": (
+        "declare it with `var {name} = ...` if it has to change",
+        "書き換えるなら `var {name} = ...` で宣言してください",
+    ),
+    "run.assign-to-immutable": (
+        "cannot assign to `{name}`: it is bound with `let` and is immutable",
+        "`{name}` には代入できません: `let` の束縛は不変です",
+    ),
     "typ.only-name-assign": (
         "only name assignment is supported by the type checker",
         "型チェッカは名前への代入だけをサポートしています",

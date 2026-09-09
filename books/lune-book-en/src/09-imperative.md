@@ -57,18 +57,26 @@ The counter advanced on the binding alone — with `let` it would still be 0. A 
 
 Only a name can be assigned to. Besides `i = i + 1`, the compound assignments `+= -= *= /= //= %=` are available (`i += 1` means exactly `i = i + 1`). One pitfall: `/` is always true division, so `x /= 2` on an `Int` variable is a type error (the result would be a `Double`). To divide an integer and stay in integers, use floor division, `x //= 2` (`//` is in §2.2).
 
-> **A known bug in v0.1** — the current implementation **fails to check assignment to a `let`**.
->
-> ```text
-> lune> let a = 1
-> ok
-> lune> a = 2
-> 2 : Int
-> lune> a
-> 2 : Int
-> ```
->
-> The supposedly immutable `a` was quietly reassigned. This ought to be a type error; it is an oversight awaiting a fix. Until then, keep "**only a `var` may be assigned to**" as a rule of your own.
+That "no" is a check, not an intention. Assigning to a `let` reports `TYP0013`.
+
+```text
+lune> let a = 1
+ok
+lune> a = 2
+error[TYP0013]: cannot assign to `a`: it is bound with `let` and is immutable
+  --> <repl:2>:1:1
+  |
+1 | a = 2
+  | ^ this binding cannot be assigned to
+   = hint: declare it with `var a = ...` if it has to change
+   = help: run `lune explain TYP0013` for a detailed explanation
+lune> a
+1 : Int
+```
+
+Files are no different. Running `lune --check` on `letassign.lune` reports the same `TYP0013`, pointing at the assignment.
+
+`let` is not the only immutable thing. **Function parameters**, **`for` variables** and names bound by a pattern cannot be assigned to either. The only binding that may change is a `var`. The check looks at the nearest binding, so a `let x` inside a block stays immutable even when an outer `var x` exists.
 
 ## 9.3 while — the smallest loop
 

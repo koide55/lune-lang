@@ -1450,5 +1450,103 @@ let s = describe(Ok(1.5))
             check_source("def weird[T](x: T): Double = x\n")
 
 
+class ImmutableBindingTests(unittest.TestCase):
+    """Only a `var` may be assigned to (issue #117).
+
+    The distinction lived in the specification and in the book's table of
+    `let` versus `var`, but nothing checked it: assigning to a `let` used to
+    succeed and quietly overwrite the binding.
+    """
+
+    def check_fails(self, source: str) -> object:
+        with self.assertRaises(LuneTypeError) as context:
+            check_source(source)
+        diagnostic = context.exception.diagnostic
+        self.assertEqual(diagnostic.code, "TYP0013")
+        return diagnostic
+
+    def test_rejects_assignment_to_a_let(self) -> None:
+        source = """
+let total =
+    let count = 0
+    count = count + 1
+    count
+"""
+        diagnostic = self.check_fails(source)
+        # the caret points at the assignment, not at the binding it targets
+        assert diagnostic.primary is not None
+        self.assertEqual(diagnostic.primary.span.start_line, 4)
+
+    def test_rejects_compound_assignment_to_a_let(self) -> None:
+        self.check_fails("let total =\n    let count = 0\n    count += 1\n    count\n")
+
+    def test_rejects_assignment_to_a_parameter(self) -> None:
+        self.check_fails("def f(n: Int): Int =\n    n = n + 1\n    n\n")
+
+    def test_rejects_assignment_to_a_for_variable(self) -> None:
+        source = """
+let total =
+    var sum = 0
+    for x in [1, 2]:
+        x = x * 2
+        sum = sum + x
+    sum
+"""
+        self.check_fails(source)
+
+    def test_accepts_assignment_to_a_var(self) -> None:
+        source = """
+let total =
+    var count = 0
+    count = count + 1
+    count += 2
+    count
+"""
+        env = check_source(source)
+        self.assertEqual(env.lookup_value("total"), INT)
+
+    def test_inner_let_shadows_an_outer_var(self) -> None:
+        """The check looks at the *nearest* binding, so shadowing works."""
+        source = """
+var count = 0
+
+let total =
+    let count = 1
+    count = count + 1
+    count
+"""
+        self.check_fails(source)
+
+    def test_inner_var_shadows_an_outer_let(self) -> None:
+        source = """
+let count = 0
+
+let total =
+    var count = 1
+    count = count + 1
+    count
+"""
+        env = check_source(source)
+        self.assertEqual(env.lookup_value("total"), INT)
+
+    def test_an_outer_var_is_assignable_from_an_inner_scope(self) -> None:
+        source = """
+let total =
+    var count = 0
+    for x in [1, 2]:
+        count = count + x
+    count
+"""
+        env = check_source(source)
+        self.assertEqual(env.lookup_value("total"), INT)
+
+    def test_an_undefined_name_is_still_reported_as_undefined(self) -> None:
+        """The name is looked up first, so "immutable" never masks "undefined"."""
+        with self.assertRaises(LuneTypeError) as context:
+            check_source("let total =\n    nope = 1\n    0\n")
+        self.assertIn("nope", context.exception.diagnostic.message)
+        self.assertNotEqual(context.exception.diagnostic.code, "TYP0013")
+
+
 if __name__ == "__main__":
     unittest.main()
