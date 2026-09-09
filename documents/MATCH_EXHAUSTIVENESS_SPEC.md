@@ -196,7 +196,7 @@ Phase 2 (実装済み):
 - `LANGUAGE_SPEC.md`: §7.4 (パターン束縛)、§11 (網羅性チェックは未実装、の記述)、§16 (制限)、§21 を更新する。
 - `TYPE_CHECKER_SPEC.md`: 検査対象に網羅性を追加する。
 - `ERROR_DIAGNOSTICS_SPEC.md`: コード表に TYP0007–TYP0009 を追加する。
-- `TUTORIAL.md` / `TUTORIAL_EN.md`: 反駁可能 let の例があれば書き換える。
+- 教科書（`books/`）: 反駁可能 let の例があれば書き換える（第5章 5.4）。
 
 ## 11. テスト計画
 

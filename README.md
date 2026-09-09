@@ -3,9 +3,18 @@
 コンパイラが教えてくれる、遅延評価の関数型入門言語。
 エラーも、その解説も、母語で読めます。
 
-> Lune is a teaching-first functional language: lazy by default, with diagnostics that speak your native language. If you prefer English, start with [documents/TUTORIAL_EN.md](https://github.com/koide55/lune-lang/blob/main/documents/TUTORIAL_EN.md) — every diagnostic and explanation defaults to English.
+**[▶ Playground(インストール不要)](https://koide55.github.io/lune-lang/playground/)** · [教科書](https://koide55.github.io/lune-lang/book/) · [診断カタログ](https://koide55.github.io/lune-lang/playground/errors.html) · `pip install lune-lang`
 
-**[▶ Playground(インストール不要)](https://koide55.github.io/lune-lang/playground/)** · [診断カタログ](https://koide55.github.io/lune-lang/playground/errors.html) · [チュートリアル](https://github.com/koide55/lune-lang/blob/main/documents/TUTORIAL.md)
+> ### In English
+>
+> **Lune is a teaching-first functional language: lazy by default, with diagnostics that speak your native language.** English is the default for every message and explanation, so nothing below is needed to get started.
+>
+> - **[Read the book](https://koide55.github.io/lune-lang/book/en/)** — *The Lune Programming Language*: a preface, 13 chapters and five appendices, every output in it taken from a real run ([PDF](https://koide55.github.io/lune-lang/book/en/lune-book.pdf)). Chapter 1 alone is a one-hour tour; chapter 4 is what the language is for.
+> - **[Try it in the browser](https://koide55.github.io/lune-lang/playground/)** — the implementation itself, running in the page. Nothing to install.
+> - **Install it**: `pip install lune-lang`, then `lune --repl`.
+> - **[Every diagnostic explained](https://koide55.github.io/lune-lang/playground/errors.html)** — all 30 codes, with the smallest example that produces each one.
+>
+> The rest of this README is in Japanese; the book is the same material, and it is complete in both languages.
 
 [![PyPI](https://img.shields.io/pypi/v/lune-lang)](https://pypi.org/project/lune-lang/)
 [![CI](https://github.com/koide55/lune-lang/actions/workflows/ci.yml/badge.svg)](https://github.com/koide55/lune-lang/actions/workflows/ci.yml)
@@ -121,7 +130,6 @@ nat : evaluated = Cons(1, <thunk>)   # 先頭だけ計算済み。続きは手�
 
 - **[教科書『プログラミング言語 Lune』](https://koide55.github.io/lune-lang/book/)** — 序章+全13章+付録A〜E。腰を据えて体系的に学ぶならこちら。演習には解答付き。[1冊にまとめた PDF](https://koide55.github.io/lune-lang/book/lune-book.pdf)(A4・167ページ、しおり付き)もあります([原稿は books/](https://github.com/koide55/lune-lang/blob/main/books/README.md))
 - [The Lune Programming Language (English edition)](https://koide55.github.io/lune-lang/book/en/) — 教科書の英語版。序章+全13章+付録A〜E、[PDF](https://koide55.github.io/lune-lang/book/en/lune-book.pdf) もあります
-- [チュートリアル(日本語)](https://github.com/koide55/lune-lang/blob/main/documents/TUTORIAL.md) / [Tutorial (English)](https://github.com/koide55/lune-lang/blob/main/documents/TUTORIAL_EN.md) — 全20章。手を動かして1〜2時間で1周する入門。遅延評価は第2〜6章でじっくり、エラー駆動学習は第17章
 - [診断コード索引(日本語)](https://github.com/koide55/lune-lang/blob/main/documents/ERROR_INDEX_JA.md) / [Error Index (English)](https://github.com/koide55/lune-lang/blob/main/documents/ERROR_INDEX.md) — 自動生成、テストで同期を強制
 - [言語仕様](https://github.com/koide55/lune-lang/blob/main/documents/LANGUAGE_SPEC.md)ほか、[documents/](https://github.com/koide55/lune-lang/blob/main/documents/README.md) に仕様書一式
 - [普及戦略](https://github.com/koide55/lune-lang/blob/main/documents/STRATEGY.md) — この部がどこへ向かうか

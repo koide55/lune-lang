@@ -2,7 +2,7 @@
 
 Version: 2026-07-21 draft 2（書名・組版・診断表示の言語を決定）
 Base: origin/main @ 8d8b86f（stream combinators / :trace / エラー駆動チュートリアル / ERROR_INDEX 反映済み）
-Related: `documents/STRATEGY.md`, `documents/TUTORIAL.md`, `documents/LANGUAGE_SPEC.md`
+Related: `documents/STRATEGY.md`, `documents/LANGUAGE_SPEC.md`
 
 ## 1. 書名（決定）
 
@@ -309,5 +309,7 @@ REPL コマンド一覧。
 
 ## 8. 未決事項
 
-1. 英語版（TUTORIAL_EN.md に相当する `books/en/`）を将来作るか。
-2. 目次ページ・索引・PDF のしおり（issue #95）。
+なし。かつての2件はどちらも解決した。
+
+- **英語版** — 2026-09-09 に `books/lune-book-en/` として完成（日本語版の対訳。検査項目は日英で共有する）。同日 `documents/TUTORIAL.md` / `TUTORIAL_EN.md` を本書へ統合し、教材を1冊に一本化した。
+- **目次ページ・索引・PDF のしおり**（issue #95）— 2026-09-08 に日本語版、2026-09-09 に英語版へ実装。
