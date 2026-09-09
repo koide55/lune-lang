@@ -974,6 +974,110 @@ class OperandTypeTests(unittest.TestCase):
                     self.assertNotIn(python_word, text)
 
 
+# Wrong-typed arguments to a builtin, spelled the way a user would write them.
+# Every one of these reaches the evaluator only under `lune --eval`; each maps
+# to the fragments the message must contain.
+_BAD_BUILTIN_ARGUMENTS = {
+    # Int counts: these used to go through `int(force_value(...))`, so a String
+    # leaked Python's "invalid literal for int() with base 10", a Bool was read
+    # as 1 (Python's True) and a Double was silently truncated.
+    'range("a", 5)': ("range expects Int", 'got "a"'),
+    'range(1, "b")': ("range expects Int", 'got "b"'),
+    "range(true, 5)": ("range expects Int", "got true"),
+    "range(1.5, 5)": ("range expects Int", "got 1.5"),
+    'take([1, 2], "a")': ("take expects Int", 'got "a"'),
+    "take([1, 2], true)": ("take expects Int", "got true"),
+    'drop([1, 2], "a")': ("drop expects Int", 'got "a"'),
+    "drop([1, 2], 1.5)": ("drop expects Int", "got 1.5"),
+    'naturalsFrom("a")': ("naturalsFrom expects Int", 'got "a"'),
+    "naturalsFrom(false)": ("naturalsFrom expects Int", "got false"),
+    # The value-shape checks that were already there: they reported the offender
+    # with Python's `repr`, so a String came out as 'a' and a Bool as True.
+    'head("a")': ("head expects List", 'got "a"'),
+    "tail(true)": ("tail expects List", "got true"),
+    "length(true)": ("length expects List or String", "got true"),
+    'map("a", fn x -> x)': ("map expects List", 'got "a"'),
+    "filter(true, fn x -> true)": ("filter expects List", "got true"),
+    'fold("a", 0, fn a b -> a)': ("fold expects List", 'got "a"'),
+    'takeWhile("a", fn x -> true)': ("takeWhile expects List", 'got "a"'),
+    "dropWhile(true, fn x -> true)": ("dropWhile expects List", "got true"),
+    'cycle("a")': ("cycle expects List", 'got "a"'),
+    'zip("a", [1])': ("zip expects Lists",),
+    'getOrElse("a", 1)': ("getOrElse expects Option", 'got "a"'),
+    'optionMap("a", fn x -> x)': ("optionMap expects Option", 'got "a"'),
+    "unwrapOr(true, 1)": ("unwrapOr expects Result", "got true"),
+    'resultMap("a", fn x -> x)': ("resultMap expects Result", 'got "a"'),
+}
+
+
+class BuiltinArgumentTypeTests(unittest.TestCase):
+    """Builtins check their argument types at run time, the way operators do.
+
+    Sibling of `OperandTypeTests`: `lune --eval` skips the type check, so
+    `range("a", 5)` reached `int("a")` and handed the user Python's own
+    `ValueError`. The counts (`take`, `drop`, `range`, `naturalsFrom`) now go
+    through `require_int`, and every builtin names the offender with
+    `format_value`, not Python's `repr`.
+    """
+
+    def value_of(self, source: str, name: str = "r"):
+        env = eval_source(source)
+        return force_value(env.lookup_raw(name))
+
+    def test_wrong_argument_types_are_reported_as_lune_errors(self) -> None:
+        for expression, fragments in _BAD_BUILTIN_ARGUMENTS.items():
+            with self.subTest(expression=expression):
+                with self.assertRaises(LuneRuntimeError) as ctx:
+                    self.value_of(f"let r = {expression}\n")
+                diagnostic = ctx.exception.diagnostic
+                self.assertEqual(diagnostic.code, "RUN0006")
+                for fragment in fragments:
+                    self.assertIn(fragment, diagnostic.message)
+
+    def test_error_messages_never_mention_python(self) -> None:
+        # The rule `OperandTypeTests` enforces for operators, for the arguments
+        # of builtins: no Python exception text, repr or type name gets out.
+        python_words = (
+            "invalid literal",
+            "int()",
+            "float()",
+            "base 10",
+            "ValueError",
+            "TypeError",
+            "Traceback",
+            "'str'",
+            "'int'",
+            "'bool'",
+            "'float'",
+            "NoneType",
+            # Python's Bool literals; Lune writes them `true` / `false`.
+            # (`None` is not on this list: it is a Lune constructor too.)
+            "True",
+            "False",
+        )
+        for expression in _BAD_BUILTIN_ARGUMENTS:
+            with self.subTest(expression=expression):
+                with self.assertRaises(LuneRuntimeError) as ctx:
+                    self.value_of(f"let r = {expression}\n")
+                diagnostic = ctx.exception.diagnostic
+                text = " ".join([diagnostic.message, *diagnostic.hints])
+                for python_word in python_words:
+                    self.assertNotIn(python_word, text)
+
+    def test_int_counts_still_accept_ints(self) -> None:
+        cases = {
+            "show(range(0, 3))": "(0 1 2)",
+            "show(range(3, 0))": "()",
+            "show(take([1, 2, 3], 2))": "(1 2)",
+            "show(take([1, 2, 3], 0))": "()",
+            "show(drop([1, 2, 3], 2))": "(3)",
+            "show(take(naturalsFrom(5), 3))": "(5 6 7)",
+        }
+        for expression, expected in cases.items():
+            with self.subTest(expression=expression):
+                self.assertEqual(self.value_of(f"let r = {expression}\n"), expected)
+
+
 class ImmutableBindingTests(unittest.TestCase):
     """`--eval` skips the type check, so the evaluator refuses too (issue #117).
 
