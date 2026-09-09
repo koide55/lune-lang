@@ -1,0 +1,12 @@
+module primes
+
+# The sieve of Eratosthenes. Take the head p as a prime, strain the multiples
+# of p out of the rest, and leave the continuation to be computed on demand.
+def sieve(xs: List[Int]): List[Int] =
+    match xs:
+        | Cons(p, rest) -> Cons(p, sieve(filter(rest, fn n: Int -> n % p != 0)))
+        | Nil -> Nil
+
+let primes = sieve(naturalsFrom(2))
+
+let first10 = take(primes, 10)
