@@ -19,9 +19,30 @@ BOOKS_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 REPO_ROOT="$(cd "$BOOKS_DIR/.." && pwd)"
 LUNE="$REPO_ROOT/bin/lune"
 
-# 本書の表記規約（第1章「表記について」）どおり、診断は LUNE_LANG=ja の
-# 日本語出力で検証する。全章（第1〜8章）が日本語表示に移行済み。
-export LUNE_LANG=ja
+# 検証する版を選ぶ。日英どちらも同じ検査項目（このファイルの後半）を使い、
+# 例のディレクトリと診断の言語だけが違う。
+#
+#   check_examples.sh        日本語版 books/examples を LUNE_LANG=ja で
+#   check_examples.sh en     英語版 books/examples-en を既定（英語）で
+#
+# 英語版はまだ全章そろっていないので、examples-en に無い章は飛ばす。
+EDITION="${1:-ja}"
+case "$EDITION" in
+    ja) EXAMPLES="$BOOKS_DIR/examples";    export LUNE_LANG=ja ;;
+    en) EXAMPLES="$BOOKS_DIR/examples-en"; unset LUNE_LANG ;;
+    *)  echo "usage: check_examples.sh [ja|en]" >&2; exit 2 ;;
+esac
+
+skip=0
+chapter() { # ディレクトリが無ければ、その章の検査をまとめて飛ばす
+    if [ -d "$EXAMPLES/$1" ]; then
+        skip=0
+        cd "$EXAMPLES/$1"
+    else
+        skip=1
+    fi
+}
+skipping() { [ "$skip" -eq 1 ]; }
 
 pass=0
 fail=0
@@ -33,16 +54,19 @@ ng() {
 }
 
 check_ok() {
+    skipping && return 0
     local out
     if out=$("$LUNE" --check "$1" 2>&1); then ok; else ng "--check $1: $out"; fi
 }
 
 fmt_ok() {
+    skipping && return 0
     local out
     if out=$("$LUNE" fmt --check "$@" 2>&1); then ok; else ng "fmt --check $*: $out"; fi
 }
 
 eval_is() {
+    skipping && return 0
     local out
     out=$("$LUNE" --eval "$2" "$1" 2>&1)
     if printf '%s\n' "$out" | diff -u "$3" - > /dev/null; then
@@ -54,6 +78,7 @@ eval_is() {
 }
 
 diag_is() {
+    skipping && return 0
     local out
     if out=$("$LUNE" --check "$1" 2>&1); then
         ng "--check $1: unexpectedly passed"
@@ -69,6 +94,7 @@ diag_is() {
 }
 
 fix_is() {
+    skipping && return 0
     local out
     out=$("$LUNE" fix "$1" 2>&1)
     if printf '%s\n' "$out" | diff -u "$2" - > /dev/null; then
@@ -81,6 +107,7 @@ fix_is() {
 
 # lune fmt の出力が期待ファイルと一致すること（整形結果そのものを紙面に載せる場合）
 fmt_is() { # file expect
+    skipping && return 0
     local out
     out=$("$LUNE" fmt "$1" 2>&1)
     if printf '%s\n' "$out" | diff -u "$2" - > /dev/null; then
@@ -93,6 +120,7 @@ fmt_is() { # file expect
 
 # --check が警告付きで成功し、出力が期待ファイルと一致すること
 check_warn_is() { # file expect
+    skipping && return 0
     local out
     if ! out=$("$LUNE" --check "$1" 2>&1); then
         ng "--check $1: unexpectedly failed"
@@ -109,6 +137,7 @@ check_warn_is() { # file expect
 
 # --eval が失敗し、診断出力が期待ファイルと一致すること
 eval_diag_is() { # file binding expect
+    skipping && return 0
     local out
     if out=$("$LUNE" --eval "$2" "$1" 2>&1); then
         ng "--eval $2 $1: unexpectedly succeeded"
@@ -125,6 +154,7 @@ eval_diag_is() { # file binding expect
 
 # --eval --trace の stderr トレースが期待ファイルと一致すること
 trace_is() { # file binding expect
+    skipping && return 0
     local out
     out=$("$LUNE" --eval "$2" --trace "$1" 2>&1 > /dev/null)
     if printf '%s\n' "$out" | diff -u "$3" - > /dev/null; then
@@ -136,7 +166,7 @@ trace_is() { # file binding expect
 }
 
 # ----- 第1章 -----
-cd "$BOOKS_DIR/examples/ch01"
+chapter ch01
 
 check_ok hello.lune
 eval_is hello.lune main expected/hello.main.txt
@@ -162,7 +192,7 @@ eval_is answers/ex1-4.lune freezing expected/ex1-4.freezing.txt
 fmt_ok hello.lune temperature.lune answers/ex1-2.lune answers/ex1-3.lune answers/ex1-4.lune
 
 # ----- 第2章 -----
-cd "$BOOKS_DIR/examples/ch02"
+chapter ch02
 
 check_ok grade.lune
 eval_is grade.lune result expected/grade.result.txt
@@ -180,7 +210,7 @@ eval_is answers/ex2-4.lune swapped expected/ex2-4.swapped.txt
 fmt_ok grade.lune answers/ex2-3.lune answers/ex2-4.lune
 
 # ----- 第3章 -----
-cd "$BOOKS_DIR/examples/ch03"
+chapter ch03
 
 check_ok pipeline.lune
 eval_is pipeline.lune result expected/pipeline.result.txt
@@ -204,7 +234,7 @@ eval_is answers/ex3-4.lune answer expected/ex3-4.answer.txt
 fmt_ok pipeline.lune hof.lune norettype.lune answers/ex3-2.lune answers/ex3-3.lune answers/ex3-4.lune
 
 # ----- 第4章 -----
-cd "$BOOKS_DIR/examples/ch04"
+chapter ch04
 
 check_ok myif.lune
 eval_is myif.lune taken expected/myif.taken.txt
@@ -229,7 +259,7 @@ eval_is answers/ex4-2.lune shortCircuited expected/ex4-2.shortCircuited.txt
 fmt_ok myif.lune trace_demo.lune box.lune point.lune recursive.lune answers/ex4-2.lune
 
 # ----- 第5章 -----
-cd "$BOOKS_DIR/examples/ch05"
+chapter ch05
 
 check_ok shape.lune
 eval_is shape.lune circleArea expected/shape.circleArea.txt
@@ -262,7 +292,7 @@ eval_is answers/ex5-4.lune none expected/ex5-4.none.txt
 fmt_ok shape.lune missing.lune refutable.lune unreachable.lune maybediv.lune answers/ex5-2.lune answers/ex5-3.lune answers/ex5-4.lune
 
 # ----- 第6章 -----
-cd "$BOOKS_DIR/examples/ch06"
+chapter ch06
 
 check_ok user.lune
 eval_is user.lune hello expected/user.hello.txt
@@ -282,7 +312,7 @@ eval_is answers/ex6-3.lune swapped expected/ex6-3.swapped.txt
 fmt_ok user.lune items.lune typofield.lune answers/ex6-2.lune answers/ex6-3.lune
 
 # ----- 第7章 -----
-cd "$BOOKS_DIR/examples/ch07"
+chapter ch07
 
 check_ok orzero.lune
 eval_is orzero.lune unwrapped expected/orzero.unwrapped.txt
@@ -312,7 +342,7 @@ eval_is answers/ex7-4.lune safe expected/ex7-4.safe.txt
 fmt_ok orzero.lune nameof.lune maybediv.lune maybedivlet.lune missingnull.lune misuse.lune answers/ex7-4.lune
 
 # ----- 第8章 -----
-cd "$BOOKS_DIR/examples/ch08"
+chapter ch08
 
 check_ok infinite.lune
 eval_is infinite.lune firstFive expected/infinite.firstFive.txt
@@ -338,7 +368,7 @@ eval_is answers/ex8-4.lune first10 expected/ex8-4.first10.txt
 fmt_ok infinite.lune fib.lune primes.lune answers/ex8-2.lune answers/ex8-3.lune answers/ex8-4.lune
 
 # ----- 第9章 -----
-cd "$BOOKS_DIR/examples/ch09"
+chapter ch09
 
 check_ok counter.lune
 eval_is counter.lune answer expected/counter.answer.txt
@@ -360,7 +390,7 @@ eval_is answers/ex9-2.lune run expected/ex9-2.run.txt
 fmt_ok counter.lune fortotal.lune io.lune badfor.lune answers/ex9-1.lune answers/ex9-2.lune
 
 # ----- 第10章 -----
-cd "$BOOKS_DIR/examples/ch10"
+chapter ch10
 
 check_ok main.lune
 eval_is main.lune area expected/main.area.txt
@@ -377,11 +407,13 @@ else
     ok
 fi
 check_ok_args() { # args... file
+    skipping && return 0
     local out
     if out=$("$LUNE" "$@" 2>&1); then ok; else ng "$*: $out"; fi
 }
 check_ok_args --module-path lib --check usesshared.lune
 eval_is_args() { # expect -- args...
+    skipping && return 0
     local expect="$1"
     shift 2
     local out
@@ -401,7 +433,7 @@ eval_is answers/shop_main.lune sum expected/shop_main.sum.txt
 fmt_ok main.lune geometry.lune util/text.lune cycle_a.lune cycle_b.lune badname.lune mismatch.lune missing.lune usesshared.lune lib/shared.lune answers/shop/items.lune answers/shop_main.lune
 
 # ----- 第11章 -----
-cd "$BOOKS_DIR/examples/ch11"
+chapter ch11
 
 diag_is typos.lune expected/typos.check.txt
 fix_is typos.lune expected/typos.fix.txt
@@ -421,7 +453,7 @@ eval_is answers/ex11-3.lune tied expected/ex11-3.tied.txt
 fmt_ok typos.lune rps.lune rps_missing.lune answers/ex11-3.lune
 
 # ----- 第12章 -----
-cd "$BOOKS_DIR/examples/ch12"
+chapter ch12
 
 check_ok tidy.lune
 eval_is tidy.lune answer expected/tidy.answer.txt
@@ -434,7 +466,7 @@ eval_is answers/ex12-3.lune doubled expected/ex12-3.doubled.txt
 fmt_ok tidy.lune answers/ex12-3.lune
 
 # ----- 第13章 -----
-cd "$BOOKS_DIR/examples/ch13"
+chapter ch13
 
 check_ok stats.lune
 eval_is stats.lune summary expected/stats.summary.txt

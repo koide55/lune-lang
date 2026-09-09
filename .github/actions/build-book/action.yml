@@ -1,13 +1,24 @@
 name: Build the book
 description: >
-  Build books/lune-book into HTML and a single-file PDF, and check the PDF is
-  readable. Shared by the Pages deploy (which publishes the result) and CI
-  (which only wants to know that it still builds).
+  Build an mdBook edition into HTML and, optionally, a single-file PDF, and
+  check that the PDF is readable. Shared by the Pages deploy (which publishes
+  the result) and CI (which only wants to know that it still builds).
 
 inputs:
+  book:
+    description: The mdBook project to build.
+    required: false
+    default: books/lune-book
   dest:
     description: Directory to write the book into. The PDF lands in it as lune-book.pdf.
     required: true
+  pdf:
+    description: >
+      Build the single-file PDF as well. The English edition is still being
+      written, and a PDF whose contents page numbers half a book is worse than
+      no PDF, so it stays off there until the translation is complete.
+    required: false
+    default: "true"
   mdbook-version:
     description: mdBook release to use.
     required: false
@@ -29,6 +40,7 @@ runs:
     # A python of our own: the system one is PEP 668 protected, and pikepdf
     # (which injects the PDF bookmarks) has to be installable.
     - uses: actions/setup-python@v5
+      if: inputs.pdf == 'true'
       with:
         python-version: "3.12"
 
@@ -36,6 +48,7 @@ runs:
     # fonts-noto-cjk: without a CJK font the whole book prints as tofu, and
     # the runner has none by default.
     - name: Install the PDF toolchain
+      if: inputs.pdf == 'true'
       shell: bash
       run: |
         set -euxo pipefail
@@ -45,11 +58,12 @@ runs:
 
     - name: Build the book (HTML)
       shell: bash
-      run: mdbook build books/lune-book --dest-dir "${{ inputs.dest }}"
+      run: mdbook build "${{ inputs.book }}" --dest-dir "${{ inputs.dest }}"
 
     # Two passes plus a self-check; see books/tools/build_pdf.sh. Chrome is
     # preinstalled on the runner and the script finds it on PATH.
     - name: Build the book (PDF)
+      if: inputs.pdf == 'true'
       shell: bash
       run: books/tools/build_pdf.sh "${{ inputs.dest }}/lune-book.pdf"
 
@@ -57,6 +71,7 @@ runs:
     # prints boxes, and a broken print.html prints a stub. Check that the
     # text layer really carries the book.
     - name: Check the PDF
+      if: inputs.pdf == 'true'
       shell: bash
       run: |
         set -euxo pipefail

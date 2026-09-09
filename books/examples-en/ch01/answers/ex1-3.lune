@@ -1,0 +1,8 @@
+module answers
+
+# Exercise 1-3: fold the Fahrenheit temperatures into a total, then an average.
+let fahrenheits = map(range(0, 16), fn i -> i * 20)
+
+let total = fold(fahrenheits, 0, fn acc f -> acc + f)
+
+let average = total / length(fahrenheits)

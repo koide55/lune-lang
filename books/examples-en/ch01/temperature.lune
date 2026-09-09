@@ -1,0 +1,9 @@
+module temperature
+
+# A table converting 0-300 degrees Fahrenheit to Celsius, in steps of 20.
+def toCelsius(f: Int): Double =
+    (f - 32) * 5 / 9
+
+let fahrenheits = map(range(0, 16), fn i -> i * 20)
+
+let table = map(fahrenheits, fn f -> (f, toCelsius(f)))

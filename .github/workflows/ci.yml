@@ -46,7 +46,9 @@ jobs:
       # type-checked, evaluated, formatted and diff'd against its expected
       # output. Catches drift between the compiler and the textbook.
       - name: Book examples
-        run: bash books/tools/check_examples.sh
+        run: |
+          bash books/tools/check_examples.sh
+          bash books/tools/check_examples.sh en
 
   # The site's book comes from a build, so a broken book stops GitHub Pages
   # from updating at all — and that failure would land on main, after review.
@@ -59,6 +61,11 @@ jobs:
       - uses: ./.github/actions/build-book
         with:
           dest: ${{ runner.temp }}/book
+      - uses: ./.github/actions/build-book
+        with:
+          book: books/lune-book-en
+          dest: ${{ runner.temp }}/book-en
+          pdf: "false"
 
   package:
     name: package

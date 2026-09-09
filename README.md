@@ -120,6 +120,7 @@ nat : evaluated = Cons(1, <thunk>)   # 先頭だけ計算済み。続きは手�
 ## 資料棚 — ドキュメント
 
 - **[教科書『プログラミング言語 Lune』](https://koide55.github.io/lune-lang/book/)** — 序章+全13章+付録A〜E。腰を据えて体系的に学ぶならこちら。演習には解答付き。[1冊にまとめた PDF](https://koide55.github.io/lune-lang/book/lune-book.pdf)(A4・167ページ、しおり付き)もあります([原稿は books/](https://github.com/koide55/lune-lang/blob/main/books/README.md))
+- [The Lune Programming Language (English edition)](https://koide55.github.io/lune-lang/book/en/) — 教科書の英語版。**翻訳中**で、序章と第1章が読めます(章ごとに追加していきます)
 - [チュートリアル(日本語)](https://github.com/koide55/lune-lang/blob/main/documents/TUTORIAL.md) / [Tutorial (English)](https://github.com/koide55/lune-lang/blob/main/documents/TUTORIAL_EN.md) — 全20章。手を動かして1〜2時間で1周する入門。遅延評価は第2〜6章でじっくり、エラー駆動学習は第17章
 - [診断コード索引(日本語)](https://github.com/koide55/lune-lang/blob/main/documents/ERROR_INDEX_JA.md) / [Error Index (English)](https://github.com/koide55/lune-lang/blob/main/documents/ERROR_INDEX.md) — 自動生成、テストで同期を強制
 - [言語仕様](https://github.com/koide55/lune-lang/blob/main/documents/LANGUAGE_SPEC.md)ほか、[documents/](https://github.com/koide55/lune-lang/blob/main/documents/README.md) に仕様書一式
