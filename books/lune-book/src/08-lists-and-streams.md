@@ -124,17 +124,15 @@ lune> take(zipWith(naturalsFrom(1), naturalsFrom(10), fn a: Int b: Int -> a + b)
 
 ## 8.5 止まらない操作 — 消費し切る関数たち
 
-ただし、道具には「リストを**最後まで**消費するもの」があります。`fold`・`length`・`drop` の仲間です。無限リストに使うと、最後は永遠に来ないので**止まりません**。
+ただし、道具には「リストを**最後まで**消費するもの」があります。`fold` と `length` です。無限リストに使うと、最後は永遠に来ないので**止まりません**。
 
 ```text
 lune> length(naturalsFrom(1))
 ```
 
-これを打つとプロンプトは帰ってきません（Ctrl-C で中断してください）。エラーにならないのがポイントです — 1つずつ数え続けること自体は正しい計算で、終わらないだけなのです。
+これを打つとプロンプトは帰ってきません（Ctrl-C で中断してください）。エラーにならないのがポイントです — 1つずつ数え続けること自体は正しい計算で、終わらないだけなのです。無限リストをそのまま表示しようとしたときも同じなので、印字の前に `take` を挟んでください。
 
-見分け方は単純です。**答えを出すのに全要素が要るか?** `take`/`map`/`filter`/`takeWhile`/`zip` は要らない（遅延を保つ）。`fold`/`length` は要る（消費し切る）。`filter` にも罠が一つあって、条件を満たす要素が二度と現れないと、次の1個を探して走り続けます。
-
-> **v0.1 の既知のバグ** — 無限リストに `drop` した結果を `take` すると、診断ではなく内部エラー（`error: 'LazyValue' object has no attribute 'fields'`）が出ます（`take(drop(naturalsFrom(1), 1), 3)` で再現）。修正待ちの実装バグです。`dropWhile` は正常なので、当面はそちらを使ってください。
+見分け方は単純です。**答えを出すのに全要素が要るか?** `take`/`map`/`filter`/`takeWhile`/`zip` は要らない（遅延を保つ）。`fold`/`length` は要る（消費し切る）。`drop(xs, n)` は捨てる `n` 個分の spine しか force しないので無限リストにも使えます（`take(drop(naturalsFrom(1), 5), 3)` は `(6 7 8)`）。ただし返るのは依然として無限リストなので、表示の前に `take` を置いてください。`filter` にも罠が一つあって、条件を満たす要素が二度と現れないと、次の1個を探して走り続けます。
 
 ## 8.6 実例集 — 無限リストで考える
 
@@ -212,7 +210,7 @@ $ lune --eval first10 primes.lune
 | `head` / `tail` | `Option` を返す。分解するなら `match` で `Cons(x, rest)` |
 | `naturalsFrom` / `iterate` / `repeat` / `cycle` | 無限リストの作り方4種 |
 | 遅延を保つ道具 | `take` / `map` / `filter` / `takeWhile` / `dropWhile` / `zip` / `zipWith` |
-| 消費し切る道具 | `fold` / `length` / `drop` — 無限リストには使わない |
+| 消費し切る道具 | `fold` / `length` — 無限リストには使わない（`drop` は捨てる分だけ force するので安全） |
 | 観察 | `:thunks` は評価せずに「どこまで実体化したか」を見せる |
 
 ## 演習問題

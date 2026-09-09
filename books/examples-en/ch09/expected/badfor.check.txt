@@ -1,0 +1,6 @@
+error[TYP0006]: for iterable must be List, got Int
+  --> badfor.lune:5:14
+  |
+5 |     for x in 42:
+  |              ^^ iterable must be List[T]
+   = help: run `lune explain TYP0006` for a detailed explanation

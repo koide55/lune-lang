@@ -1,0 +1,7 @@
+error[MOD0003]: module declaration mismatch: expected mismatch, got totally.different
+  --> mismatch.lune:1:1
+  |
+1 | module totally.different
+  | ^^^^^^ module name does not match the import path
+   = hint: change the declaration to `module mismatch` or import it as `totally.different`
+   = help: run `lune explain MOD0003` for a detailed explanation

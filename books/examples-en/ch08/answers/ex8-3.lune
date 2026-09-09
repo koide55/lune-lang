@@ -1,0 +1,7 @@
+module answers
+
+# Exercise 8-3: the average of each neighbouring pair (a moving average).
+# Shift the list by one and zip it with itself.
+let readings = [1, 4, 7, 10]
+
+let smoothed = zipWith(readings, drop(readings, 1), fn a: Int b: Int -> (a + b) / 2)

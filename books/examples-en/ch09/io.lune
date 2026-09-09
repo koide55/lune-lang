@@ -1,0 +1,9 @@
+module io
+
+# Collect output in an IO block, which runs top to bottom.
+def report(): Unit =
+    IO:
+        println("one")
+        println("two")
+
+let run = report()

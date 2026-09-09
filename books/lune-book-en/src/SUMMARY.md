@@ -15,3 +15,6 @@
 - [Algebraic Data Types and Pattern Matching](05-adts-and-match.md)
 - [Records](06-records.md)
 - [Null Safety](07-null-safety.md)
+- [Lists and Streams](08-lists-and-streams.md)
+- [Writing Imperatively — var, while, for and IO](09-imperative.md)
+- [Modules](10-modules.md)

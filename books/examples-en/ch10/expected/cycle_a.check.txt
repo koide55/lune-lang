@@ -1,0 +1,6 @@
+error[MOD0002]: cyclic module import detected: cycle_a.lune -> cycle_b.lune -> cycle_a.lune
+  --> cycle_b.lune:2:1
+  |
+2 | import cycle_a
+  | ^^^^^^ this import closes the cycle
+   = help: run `lune explain MOD0002` for a detailed explanation

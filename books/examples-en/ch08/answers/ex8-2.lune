@@ -1,0 +1,6 @@
+module answers
+
+# Exercise 8-2: five even numbers from the infinite list of squares.
+let squares = map(naturalsFrom(1), fn n: Int -> n * n)
+
+let evenSquares = take(filter(squares, fn s: Int -> s % 2 == 0), 5)

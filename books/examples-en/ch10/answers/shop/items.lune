@@ -1,0 +1,12 @@
+module shop.items
+
+# Exercise 10-2: split the data and its operations out into a module.
+record Item:
+    name: String
+    price: Int
+
+def priceOf(item: Item): Int =
+    item.price
+
+def total(items: List[Item]): Int =
+    fold(map(items, priceOf), 0, fn a x -> a + x)

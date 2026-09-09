@@ -208,7 +208,7 @@ def cycle[T](list: List[T]): List[T]
 - `Cons` の tail が遅延であるため、`List` はそのまま無限列（Stream）として使える。専用の `Stream` 型は設けない。
 - `iterate` / `repeat` / `naturalsFrom` は無限リストを返す。`take` / `map` / `filter` / `takeWhile` / `zip` / `zipWith` は遅延して消費するため、無限リストに対しても終了する（例: `take(naturalsFrom(1), 5)` は `(1 2 3 4 5)`）。
 - `cycle` は有限リストを無限リストへ変換する。
-- `fold` / `drop` / `length` はリストを消費し切るため、無限リストに使うと停止しない。`dropWhile` は predicate が無限に真であり続けると停止しない。
+- `fold` / `length` はリストを消費し切るため、無限リストに使うと停止しない。`dropWhile` は predicate が無限に真であり続けると停止しない。`drop` は捨てる範囲の spine しか評価しない（上記）ので無限リストにも使えるが、返るリストは依然として無限である。
 
 ## 7. Console / IO
 

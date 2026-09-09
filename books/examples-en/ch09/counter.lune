@@ -1,0 +1,10 @@
+module counter
+
+# var and while live inside a block; the last expression is its result.
+let answer =
+    var i = 0
+    var total = 0
+    while i < 5:
+        total = total + i
+        i = i + 1
+    total

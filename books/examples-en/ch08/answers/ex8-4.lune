@@ -1,0 +1,15 @@
+module answers
+
+# Exercise 8-4: the Lucas numbers. The same recurrence as Fibonacci, with the
+# seed changed to (2, 1).
+def step(p: Tuple[Int, Int]): Tuple[Int, Int] =
+    match p:
+        | (a, b) -> (b, a + b)
+
+def fst(p: Tuple[Int, Int]): Int =
+    let (a, _) = p
+    a
+
+let lucas = map(iterate(step, (2, 1)), fst)
+
+let first10 = take(lucas, 10)

@@ -1,0 +1,10 @@
+module answers
+
+# Exercise 9-1: the product of 1 to 10 (10!) with while.
+let product =
+    var i = 1
+    var acc = 1
+    while i <= 10:
+        acc = acc * i
+        i = i + 1
+    acc
