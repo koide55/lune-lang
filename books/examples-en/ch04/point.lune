@@ -1,0 +1,7 @@
+module point
+
+# A strict field is evaluated at the moment the value is constructed.
+type Point =
+    | Point(strict x: Int, strict y: Int)
+
+let p = Point(crash(), 0)

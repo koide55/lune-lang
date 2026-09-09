@@ -1,0 +1,10 @@
+module answers
+
+# Exercise 3-4: applyTwice generalised — apply f n times.
+def applyN(f: Int -> Int, n: Int, x: Int): Int =
+    if n == 0 then x else applyN(f, n - 1, f(x))
+
+def double(n: Int): Int =
+    n * 2
+
+let answer = applyN(double, 3, 1)

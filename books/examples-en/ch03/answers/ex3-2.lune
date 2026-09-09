@@ -1,0 +1,15 @@
+module answers
+
+# Exercise 3-2: function composition. compose(f, g) is "g, then f".
+def compose(f: Int -> Int, g: Int -> Int): Int -> Int =
+    fn x -> f(g(x))
+
+def inc(n: Int): Int =
+    n + 1
+
+def double(n: Int): Int =
+    n * 2
+
+let incThenDouble = compose(double, inc)
+
+let answer = incThenDouble(5)

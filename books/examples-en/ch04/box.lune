@@ -1,0 +1,11 @@
+module box
+
+# Constructor fields are lazy by default too.
+type Box =
+    | Box(value: Int)
+
+def peek(b: Box): String =
+    match b:
+        | Box(_) -> "untouched"
+
+let ok = peek(Box(crash()))

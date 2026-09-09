@@ -1,0 +1,7 @@
+module answers
+
+# Exercise 3-3: Fibonacci by recursion. The result type Int is required (TYP0011).
+def fib(n: Int): Int =
+    if n <= 1 then n else fib(n - 1) + fib(n - 2)
+
+let answer = fib(10)

@@ -1,0 +1,7 @@
+module answers
+
+# Exercise 2-3: a block-form let names the intermediate values of a BMI.
+let bmi =
+    let h = 1.7
+    let w = 62.0
+    w / (h * h)
