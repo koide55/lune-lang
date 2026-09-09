@@ -7,6 +7,7 @@
 
 **[▶ Playground(インストール不要)](https://koide55.github.io/lune-lang/playground/)** · [診断カタログ](https://koide55.github.io/lune-lang/playground/errors.html) · [チュートリアル](https://github.com/koide55/lune-lang/blob/main/documents/TUTORIAL.md)
 
+[![PyPI](https://img.shields.io/pypi/v/lune-lang)](https://pypi.org/project/lune-lang/)
 [![CI](https://github.com/koide55/lune-lang/actions/workflows/ci.yml/badge.svg)](https://github.com/koide55/lune-lang/actions/workflows/ci.yml)
 [![Python](https://img.shields.io/badge/python-3.10%20%7C%203.11%20%7C%203.12%20%7C%203.13%20%7C%203.14-blue)](https://github.com/koide55/lune-lang/blob/main/pyproject.toml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-green)](https://github.com/koide55/lune-lang/blob/main/LICENSE)
@@ -129,6 +130,10 @@ nat : evaluated = Cons(1, <thunk>)   # 先頭だけ計算済み。続きは手�
 必要なのは Python 3.10+ だけ。依存パッケージはありません。
 
 ```sh
+pip install lune-lang                      # あるいは下のように git clone でも
+```
+
+```sh
 git clone https://github.com/koide55/lune-lang.git
 cd lune-lang
 
@@ -146,18 +151,18 @@ cd lune-lang
 
 ### pip で入れる
 
-`pip` で入れると `lune` コマンドがどこからでも使えます(`./bin/lune` と同じもの)。
+クローンしなくても、`pip` だけで始められます。入れると `lune` コマンドがどこからでも使えます(`./bin/lune` と同じもの)。
 
 ```sh
-pip install git+https://github.com/koide55/lune-lang.git
+pip install lune-lang
 
 lune --check file.lune
 LUNE_LANG=ja lune --check file.lune        # 既定を日本語診断にする
 ```
 
-クローン済みなら `pip install -e .` で編集可能インストールにもできます。配布名は
-`lune-lang`(PyPI の `lune` は別のパッケージが使用中)で、**PyPI への公開はまだ**です
-(手順は [documents/RELEASING.md](https://github.com/koide55/lune-lang/blob/main/documents/RELEASING.md) に用意してあります)。
+配布名は [`lune-lang`](https://pypi.org/project/lune-lang/) です(import するパッケージ名は `lune`。PyPI の `lune` は別のパッケージが使用中のため)。依存パッケージはありません。
+
+main の最新を試したいときは `pip install git+https://github.com/koide55/lune-lang.git`、クローン済みなら `pip install -e .` で編集可能インストールにもできます。リリースの手順は [documents/RELEASING.md](https://github.com/koide55/lune-lang/blob/main/documents/RELEASING.md) にあります。
 
 ## 顧問の先生より — 開発者向け
 
