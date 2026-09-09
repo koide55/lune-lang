@@ -1,0 +1,7 @@
+error[TYP0007]: non-exhaustive match: missing case (Rock, Rock)
+  --> rps_missing.lune:10:5
+   |
+10 |     match (a, b):
+   |     ^^^^^ pattern (Rock, Rock) is not covered
+   = hint: add a case for (Rock, Rock), or a wildcard case `| _ -> ...`
+   = help: run `lune explain TYP0007` for a detailed explanation

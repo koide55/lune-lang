@@ -1,0 +1,14 @@
+module counted
+
+# An "expensive" computation with a tick() in it: the counter records how
+# many times it was called.
+def costly(n: Int): Int =
+    seq tick() (n * 2)
+
+let doubled = map([1, 2, 3, 4, 5], costly)
+
+# Take just the first two, and evaluate them all the way down.
+let firstTwo = deepForce take(doubled, 2)
+
+# How many times costly ran while doing so.
+let cost = seq firstTwo tickCount()

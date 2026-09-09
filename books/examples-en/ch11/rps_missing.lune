@@ -1,0 +1,13 @@
+module bad
+
+type Hand =
+    | Rock
+    | Paper
+    | Scissors
+
+# All three winning cases are there. And yet...
+def beats(a: Hand, b: Hand): Bool =
+    match (a, b):
+        | (Rock, Scissors) -> true
+        | (Paper, Rock) -> true
+        | (Scissors, Paper) -> true
