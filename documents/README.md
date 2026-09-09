@@ -6,18 +6,9 @@
 
 - `LANGUAGE_SPEC.md`: 現在の実装で利用できる Lune v0.1 の言語仕様。
 - `LANGUAGE_FUTURE_SPEC.md`: JVM/Java/OO 連携まで含む将来目標仕様。
-- `TUTORIAL.md`: Lune v0.1 を楽しく学ぶためのチュートリアル。
-- `TUTORIAL_EN.md`: チュートリアルの英語版。
-
-チュートリアルの遅延評価の節（第2〜6章）には「Playground で開く」リンクがある。リンクは
-**コードそのものを URL に畳み込んだもの**なので、上のコード例を直したらリンクも作り直す:
-
-```sh
-tools/playground_links.py write documents/TUTORIAL.md documents/TUTORIAL_EN.md
-```
-
-作り直し忘れはテスト（`tests/test_tutorial.py`）が落ちて教えてくれる。教科書側は
-ブラウザで生成するので、この手当ては要らない（`books/lune-book/theme/playground.js`）。
+- `TUTORIAL.md` / `TUTORIAL_EN.md`: **教科書に統合済み**（2026-09-09）。参照している URL が
+  残っているので、案内だけを置いてある。学ぶ人は
+  [教科書](https://koide55.github.io/lune-lang/book/)（[English](https://koide55.github.io/lune-lang/book/en/)）へ。
 
 ## 方針・調査
 

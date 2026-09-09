@@ -125,6 +125,35 @@ class LinkTests(unittest.TestCase):
                         )
 
 
+class RetiredTutorialTests(unittest.TestCase):
+    """The tutorials were merged into the book on 2026-09-09.
+
+    The files stay as signposts because URLs pointing at them are already
+    published (the PyPI description among them), but they must not grow back
+    into a second copy of the material — maintaining the same content twice
+    is what the merge was for.
+    """
+
+    TUTORIALS = {
+        "documents/TUTORIAL.md": "https://koide55.github.io/lune-lang/book/",
+        "documents/TUTORIAL_EN.md": "https://koide55.github.io/lune-lang/book/en/",
+    }
+
+    def test_they_point_at_the_book(self) -> None:
+        for name, url in self.TUTORIALS.items():
+            with self.subTest(file=name):
+                text = (ROOT / name).read_text(encoding="utf-8")
+                self.assertIn(url, text)
+
+    def test_they_stayed_signposts(self) -> None:
+        """A pointer, not a tutorial: no code examples, and short."""
+        for name in self.TUTORIALS:
+            with self.subTest(file=name):
+                text = (ROOT / name).read_text(encoding="utf-8")
+                self.assertNotIn("```lune", text)
+                self.assertLess(len(text.splitlines()), 60)
+
+
 class PdfBuildTests(unittest.TestCase):
     """Both editions are built by the same two-pass script."""
 

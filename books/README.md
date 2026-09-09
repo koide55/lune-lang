@@ -69,7 +69,7 @@ BOOK=lune-book-en books/tools/build_pdf.sh out.pdf
 
 | 文書 | 役割 | 想定読了時間 |
 | --- | --- | --- |
-| `documents/TUTORIAL.md` | 手を動かして1周する入門（現状20章） | 1〜2時間 |
+| 本書の第1章 | 手を動かして1周する入門（`documents/TUTORIAL.md` は 2026-09-09 に本書へ統合） | 1時間 |
 | `documents/*_SPEC.md` | 実装者向けの規範仕様 | 参照用 |
 | `documents/ERROR_INDEX.md` | 全30診断コードの解説（`lune explain --index` で生成） | 参照用 |
 | **books/（本書）** | **体系的に学ぶ教科書 + リファレンスマニュアル付録** | 数日〜数週間 |
@@ -85,7 +85,7 @@ BOOK=lune-book-en books/tools/build_pdf.sh out.pdf
 2. 型が付く例は `./bin/lune --check`、値を示す例は `./bin/lune --eval`、
    エラー例は実際の診断出力との一致で検証する（検証スクリプトを `books/tools/` に用意予定）。
 3. REPL トランスクリプトは実際の REPL 出力を貼る。
-4. 用語は `documents/TUTORIAL.md` の訳語（サンク、正格、網羅性など）に合わせる。
+4. 用語は本書の中で一貫させる（サンク、正格、網羅性など）。
 
 ## ディレクトリ構成（mdBook）
 
