@@ -118,7 +118,8 @@ Value = object
 @dataclass
 class Thunk:
     expr: ast.Expr
-    env: Env
+    # Cleared once `force` has memoised the result — see the note there.
+    env: Env | None
     state: str = ThunkState.UNEVALUATED
     value: Value | None = None
     error: Exception | None = None
@@ -143,6 +144,11 @@ class Thunk:
         try:
             self.value = eval_expr(self.expr, self.env)
             self.state = ThunkState.EVALUATED
+            # Same reason as LazyValue: a memoised thunk has no further use for
+            # the environment it closed over, and holding it pins every value
+            # bound there. `expr` stays — the trace prints it, and it is shared
+            # AST rather than captured values.
+            self.env = None
         except Exception as exc:
             self.error = exc
             self.state = ThunkState.FAILED
@@ -157,7 +163,8 @@ class Thunk:
 
 @dataclass
 class LazyValue:
-    compute: Callable[[], Value]
+    # Cleared once `force` has memoised the result — see the note there.
+    compute: Callable[[], Value] | None
     state: str = ThunkState.UNEVALUATED
     value: Value | None = None
     error: Exception | None = None
@@ -182,6 +189,13 @@ class LazyValue:
         try:
             self.value = self.compute()
             self.state = ThunkState.EVALUATED
+            # Let go of the closure now that its result is memoised. It is dead
+            # weight either way, but it is also a space leak: the closures that
+            # build a lazy spine capture the cell they resume from, so keeping
+            # them made a walk retain every cell it had passed. `filter` over a
+            # long `range` is the case that shows it — the result is nine
+            # elements and the scan behind it must not be paid for in memory.
+            self.compute = None
         except Exception as exc:
             self.error = exc
             self.state = ThunkState.FAILED
@@ -443,7 +457,7 @@ def _builtin_tail(args: list[Value]) -> Value:
 
 
 def _builtin_length(args: list[Value]) -> Value:
-    value = force_value(args[0])
+    value = force_value(_consumed_arg(args))
     if isinstance(value, str):
         return len(value)
     count = 0
@@ -470,7 +484,7 @@ def _builtin_map(args: list[Value]) -> Value:
 
 
 def _builtin_filter(args: list[Value]) -> Value:
-    items = force_value(args[0])
+    items = force_value(_consumed_arg(args))
     predicate = force_value(args[1])
     while True:
         items = force_value(items)
@@ -481,12 +495,20 @@ def _builtin_filter(args: list[Value]) -> Value:
         head = items.fields[0]
         tail = items.fields[1]
         if require_bool(apply_value(predicate, [head]), t("ctx.predicate-of", func="filter")):
-            return DataValue("Cons", [head, LazyValue(lambda tail=tail, predicate=predicate: _builtin_filter([tail, predicate]))])
+            # The tail closes over the argument *list*, not over `tail` itself.
+            # Resuming empties the list (`_consumed_arg`) before the scan for
+            # the next match begins, so a long run of non-matches does not keep
+            # this cell — and with it every cell the scan walks past — alive.
+            # Capturing `tail` directly would hold it for the whole call, which
+            # is what made `filter(range(1, 100000000), fn x -> x < 10)` grow
+            # without bound after producing its nine elements.
+            rest = [tail, predicate]
+            return DataValue("Cons", [head, LazyValue(lambda: _builtin_filter(rest))])
         items = _forced_tail(items)
 
 
 def _builtin_fold(args: list[Value]) -> Value:
-    items = force_value(args[0])
+    items = force_value(_consumed_arg(args))
     acc = args[1]
     function = force_value(args[2])
     while True:
@@ -513,7 +535,7 @@ def _builtin_take(args: list[Value]) -> Value:
 
 
 def _builtin_drop(args: list[Value]) -> Value:
-    items = args[0]
+    items = _consumed_arg(args)
     count = require_int(args[1], "drop")
     while count > 0:
         items = force_value(items)
@@ -588,7 +610,7 @@ def _builtin_take_while(args: list[Value]) -> Value:
 
 def _builtin_drop_while(args: list[Value]) -> Value:
     # Drop elements while the predicate holds; return the rest (lazy tail kept).
-    items = args[0]
+    items = _consumed_arg(args)
     predicate = force_value(args[1])
     while True:
         items = force_value(items)
@@ -1115,6 +1137,25 @@ def force_value(value: Value) -> Value:
     # for `drop(...)` evaluates to the LazyValue tail of the source list).
     while isinstance(value, Thunk | LazyValue):
         value = value.force()
+    return value
+
+
+def _consumed_arg(args: list[Value], index: int = 0) -> Value:
+    """Read an argument and clear the caller's slot.
+
+    A builtin that walks a spine must not leave the *first* cell reachable.
+    `_forced_tail` rewrites each cell as the walk passes it, but that frees
+    nothing while something still names the head, because every cell behind it
+    stays reachable through the chain. The argument list names it for as long
+    as the builtin runs, which is what made `length(range(1, n))` cost O(n)
+    memory even though it keeps no result.
+
+    A builtin owns its argument list — both dispatch sites (`eval_call` and
+    `apply_value`) hand over a fresh one — so clearing the slot is invisible
+    to the caller.
+    """
+    value = args[index]
+    args[index] = None
     return value
 
 
