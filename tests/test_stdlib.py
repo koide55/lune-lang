@@ -3,6 +3,7 @@ from __future__ import annotations
 import contextlib
 import io
 import pathlib
+import tracemalloc
 import unittest
 
 from lune.evaluator import (
@@ -449,6 +450,99 @@ class SpineCompressionTests(unittest.TestCase):
         cell = force_value(env.lookup_raw("xs"))
         self.assertIsInstance(cell.fields[1], Thunk | LazyValue)
         self.assertEqual(cell.fields[1].state, ThunkState.FAILED)
+
+
+class SpineRetentionTests(unittest.TestCase):
+    """A walk that keeps no result must not keep the spine either.
+
+    `SpineCompressionTests` covers the first half: the walk rewrites each cell
+    so the thunk behind it can be collected. That frees nothing while anything
+    still *names* the head, because every cell stays reachable through the
+    chain, and two things did. A builtin's argument list named it for the whole
+    call, so `length(range(1, n))` held all n cells. And a lazy tail closed over
+    the cell it resumes from, so `filter` held every cell it scanned looking for
+    the next match — the case that made
+
+        filter(range(1, 100000000), fn x -> x < 10)
+
+    produce its nine elements and then grow to roughly 19 GB during the scan
+    that follows them, instead of finishing. Both walks are now flat, so the
+    measure here is memory that does not grow with the length of the walk.
+    """
+
+    SMALL = 5_000
+    LARGE = 25_000
+    ALLOWANCE = 500_000
+
+    def peak_bytes(self, source: str) -> int:
+        tracemalloc.start()
+        try:
+            env = eval_source(source)
+            format_value(env.lookup_raw("r"))
+            return tracemalloc.get_traced_memory()[1]
+        finally:
+            tracemalloc.stop()
+
+    def assert_flat(self, source: str) -> None:
+        """The same walk, five times as long, must not cost more memory.
+
+        A retained spine costs about 190 bytes an element, so the leak this
+        guards against grows these walks by ~3.8 MB. Flat, they differ by about
+        11 KB. The allowance sits between the two with room on both sides, so
+        the test neither flickers nor lets a regression through.
+        """
+        small = self.peak_bytes(source.replace("N", str(self.SMALL)))
+        large = self.peak_bytes(source.replace("N", str(self.LARGE)))
+        self.assertLess(
+            large - small,
+            self.ALLOWANCE,
+            f"{source}: peak memory grew from {small} to {large} bytes when the "
+            f"walk went from {self.SMALL} to {self.LARGE} elements",
+        )
+
+    def test_filter_does_not_retain_the_range_it_scans(self) -> None:
+        # Nine elements out, and everything after them scanned and dropped.
+        self.assert_flat("let r = filter(range(1, N), fn x -> x < 10)\n")
+
+    def test_filter_does_not_retain_the_gaps_between_matches(self) -> None:
+        self.assert_flat("let r = length(filter(range(1, N), fn x -> x % 1000 == 0))\n")
+
+    def test_length_does_not_retain_the_spine_it_counts(self) -> None:
+        self.assert_flat("let r = length(range(1, N))\n")
+
+    def test_fold_does_not_retain_the_spine_it_folds(self) -> None:
+        self.assert_flat("let r = fold(range(1, N), 0, fn a -> fn b -> a + b)\n")
+
+    def test_drop_does_not_retain_the_prefix_it_skips(self) -> None:
+        self.assert_flat("let r = length(drop(range(1, N), 10))\n")
+
+    def test_a_forced_thunk_lets_go_of_its_environment(self) -> None:
+        """The other half of the same rule, where it can be seen directly."""
+        env = eval_source("let n = 1 + 2\n")
+        thunk = env.lookup_raw("n")
+        self.assertIsInstance(thunk, Thunk)
+        self.assertIsNotNone(thunk.env)
+        self.assertEqual(force_value(thunk), 3)
+        self.assertIsNone(thunk.env)
+        self.assertEqual(force_value(thunk), 3, "the memoised value survives")
+
+    def test_a_forced_lazy_tail_lets_go_of_its_closure(self) -> None:
+        env = eval_source("let xs = range(1, 5)\n")
+        tail = force_value(env.lookup_raw("xs")).fields[1]
+        self.assertIsInstance(tail, LazyValue)
+        self.assertIsNotNone(tail.compute)
+        force_value(tail)
+        self.assertIsNone(tail.compute)
+        self.assertEqual(format_value(env.lookup_raw("xs")), "(1 2 3 4)")
+
+    def test_a_failed_tail_still_raises_on_the_next_visit(self) -> None:
+        """Dropping the producer must not disturb a memoised failure."""
+        env = eval_source("let xs = map([1], fn x -> crash())\n")
+        head = force_value(env.lookup_raw("xs")).fields[0]
+        for _ in range(2):
+            with self.assertRaises(LuneRuntimeError):
+                force_value(head)
+        self.assertEqual(head.state, ThunkState.FAILED)
 
 
 if __name__ == "__main__":
