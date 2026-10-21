@@ -85,6 +85,100 @@ MESSAGES: dict[str, tuple[str, str]] = {
     "hint.module-searched": ("searched: {roots}", "検索した場所: {roots}"),
     "mod.unreadable": ("failed to read module file: {path}", "モジュールファイルを読み取れませんでした: {path}"),
     "label.module-unreadable": ("module file could not be read", "ファイルを読み取れない"),
+    # --- Python interop (documents/PYTHON_INTEROP_SPEC.md) ---
+    "mod.python-not-found": ("Python module not found: {name}", "Python モジュールが見つかりません: {name}"),
+    "label.python-not-found": (
+        "not installed in the Python that runs lune",
+        "lune を動かしている Python にはインストールされていない",
+    ),
+    "hint.python-install": (
+        "install it with `{python} -m pip install {package}` (this is the Python that runs lune)",
+        "`{python} -m pip install {package}` でインストールできます（lune を動かしている Python です）",
+    ),
+    "mod.python-disabled": ("Python imports are disabled: {name}", "Python の import は無効になっています: {name}"),
+    "label.python-disabled": ("Python imports are turned off", "Python の import が無効"),
+    "hint.python-disabled": (
+        "they were turned off with `--no-python` or `LUNE_PYTHON=off`",
+        "`--no-python` または `LUNE_PYTHON=off` で無効化されています",
+    ),
+    "run.python-exception": ("Python raised {exc}", "Python で例外が発生しました: {exc}"),
+    "hint.py-traceback": (
+        "run `lune` with `--py-traceback` to see the full Python traceback",
+        "Python のトレースバック全体は `lune --py-traceback` で表示できます",
+    ),
+    "run.py-unconvertible": (
+        "a Lune value of type {type} cannot be passed to Python",
+        "{type} 型の Lune の値は Python に渡せません",
+    ),
+    "run.py-pass-function": (
+        "Lune functions cannot be passed to Python yet",
+        "Lune の関数はまだ Python に渡せません",
+    ),
+    "hint.py-convertible": (
+        "Python accepts Int, Double, String, Bool, Unit, null, and Lists, Tuples and Py values built from them",
+        "Python に渡せるのは Int・Double・String・Bool・Unit・null と、それらからなる List・Tuple、そして Py の値です",
+    ),
+    "run.py-convert": (
+        "{fn}: a Python {pytype} cannot be converted to {type}",
+        "{fn}: Python の {pytype} は {type} に変換できません",
+    ),
+    "hint.py-item": (
+        "a NumPy array with one element becomes a scalar with `.item()`; `pyStr(...)` shows what the value is",
+        "要素が 1 つの NumPy 配列は `.item()` でスカラーにできます。値の中身は `pyStr(...)` で確かめられます",
+    ),
+    "run.py-expected-py": ("{fn} expects a Py value, got {type}", "{fn} には Py の値が必要ですが、{type} が与えられました"),
+    "run.py-not-iterable": ("a Python {pytype} cannot be iterated", "Python の {pytype} は反復できません"),
+    "run.py-equality": (
+        "cannot tell whether two Python values are equal: `==` gave a {pytype}, not a bool",
+        "2 つの Python の値が等しいか決められません: `==` の結果が bool ではなく {pytype} でした",
+    ),
+    "hint.py-array-equal": (
+        "compare whole arrays with `np.array_equal(a, b)`",
+        "配列全体の比較には `np.array_equal(a, b)` を使ってください",
+    ),
+    "run.py-duplicate-kwarg": (
+        "keyword argument `{name}` is given more than once",
+        "キーワード引数 `{name}` が 2 回以上指定されています",
+    ),
+    "run.py-slice-bound": ("pySlice bounds must be Int or null, got {type}", "pySlice の範囲は Int か null ですが、{type} が与えられました"),
+    "run.unsupported-index": (
+        "indexing with `[]` works only on Python values (Py), not on {type}",
+        "`[]` による添字は Python の値 (Py) にしか使えません。{type} には使えません",
+    ),
+    "typ.unsupported-index": (
+        "indexing with `[]` works only on Python values (Py), not on {type}",
+        "`[]` による添字は Python の値 (Py) にしか使えません。{type} には使えません",
+    ),
+    "label.unsupported-index": ("not a Python value", "Python の値ではない"),
+    "hint.index-lists": (
+        "for a List, take elements apart with `match`, `head` or `drop`",
+        "List の要素は `match`・`head`・`drop` で取り出してください",
+    ),
+    "typ.py-unconvertible": (
+        "a value of type {type} cannot be passed to Python",
+        "{type} 型の値は Python に渡せません",
+    ),
+    "label.py-unconvertible": ("this value has no Python counterpart", "Python に対応する値がない"),
+    "hint.py-convert": (
+        "use `{fn}(...)` to convert a Python value to {type}",
+        "Python の値は `{fn}(...)` で {type} に変換できます",
+    ),
+    "hint.py-as-list": (
+        "`asList(...)` gives a List[Py]; convert its elements with `map`, e.g. `map(asList(xs), asInt)`",
+        "`asList(...)` は List[Py] を返します。要素は `map` で変換してください（例: `map(asList(xs), asInt)`）",
+    ),
+    "hint.py-array-truth": (
+        "to test all or any elements of an array, use `np.all(...)` or `np.any(...)`",
+        "配列の全要素・いずれかの要素を調べるなら `np.all(...)` / `np.any(...)` を使ってください",
+    ),
+    "hint.py-as-nullable": (
+        "`asNullable(...)` turns Python's None into null",
+        "`asNullable(...)` は Python の None を null に変換します",
+    ),
+    "hint.to-py": (
+        "a Lune value becomes a Py value with `toPy(...)`",
+        "Lune の値は `toPy(...)` で Py の値にできます",
+    ),
     # --- typechecker: names ---
     "typ.undefined-name": ("undefined name: {name}", "未定義の名前: {name}"),
     "typ.undefined-constructor": ("undefined constructor: {name}", "未定義のコンストラクタ: {name}"),

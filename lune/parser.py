@@ -3,9 +3,10 @@ from __future__ import annotations
 from . import nodes as ast
 from .layout import apply_layout
 from .lexer import lex
-from .tokens import LuneSyntaxError, Token, TokenKind
+from .tokens import KEYWORDS, LuneSyntaxError, Token, TokenKind
 from .messages import t
 
+_KEYWORD_KINDS = frozenset(KEYWORDS.values())
 
 ASSIGNMENT_OPS = {
     TokenKind.ASSIGN,
@@ -259,13 +260,13 @@ class Parser:
 
             if token.kind == TokenKind.DOT:
                 dot = self.advance()
-                name = self.expect(TokenKind.IDENT).lexeme
+                name = self.expect_member_name()
                 left = ast.MemberExpr(left, name, span=getattr(left, "span", None) or token_span(dot))
                 continue
 
             if token.kind == TokenKind.QUESTION_DOT:
                 dot = self.advance()
-                name = self.expect(TokenKind.IDENT).lexeme
+                name = self.expect_member_name()
                 left = ast.SafeMemberExpr(left, name, span=getattr(left, "span", None) or token_span(dot))
                 continue
 
@@ -724,6 +725,17 @@ class Parser:
         if self.peek().kind in {TokenKind.EOF, TokenKind.DEDENT}:
             return
         self.expect(TokenKind.NEWLINE)
+
+    def expect_member_name(self) -> str:
+        """The name after `.` / `?.`, where a keyword is just a name.
+
+        Nothing after a dot can start a construct, so reading `match` there as
+        a keyword only forbids names: Python's `re.match` and `x.type` were
+        syntax errors (PYTHON_INTEROP_SPEC.md section 5.4).
+        """
+        if self.peek().kind in _KEYWORD_KINDS:
+            return self.advance().lexeme
+        return self.expect(TokenKind.IDENT).lexeme
 
     def match(self, kind: TokenKind) -> bool:
         if self.peek().kind == kind:

@@ -32,6 +32,8 @@ The last line is the default, for developers. It is not meant to be read by peop
 | --- | --- |
 | `--lang en\|ja` | the language of diagnostics; `--lang=ja` also works |
 | `--module-path DIR` | add a module search root; **may be repeated** (chapter 10) |
+| `--no-python` | refuse `import python.*` (it becomes `MOD0004`); the environment variable `LUNE_PYTHON=off` does the same |
+| `--py-traceback` | add Python's full traceback to a Python exception (`RUN0007`) |
 | `--version` / `-V` | print the version and exit |
 | `-h` / `--help` | print usage |
 

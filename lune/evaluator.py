@@ -291,6 +291,22 @@ class TupleValue:
         return format_value(self)
 
 
+@dataclass(frozen=True, eq=False)
+class PyObject:
+    """A Python object, the runtime form of every value of type `Py`.
+
+    Python results are always wrapped, even an `int` or a `str`, so a value the
+    type checker calls `Py` is a PyObject at run time too, with or without the
+    check. It is a leaf: forcing stops here, and only lune.pyinterop looks
+    inside (documents/PYTHON_INTEROP_SPEC.md section 7.1).
+    """
+
+    obj: object
+
+    def __repr__(self) -> str:
+        return format_value(self)
+
+
 UNIT = ()
 
 
@@ -305,6 +321,7 @@ def eval_module(module: ast.ModuleFile) -> Env:
 
 
 def eval_module_into(module: ast.ModuleFile, env: Env) -> Env:
+    pyinterop.bind_imports(module, env)
     for decl in module.declarations:
         eval_decl(decl, env)
     return env
@@ -324,6 +341,7 @@ def initial_env() -> Env:
     env.define("tick", BuiltinFunction("tick", lambda args: _builtin_tick(state)))
     env.define("tickCount", BuiltinFunction("tickCount", lambda args: state["ticks"]))
     register_standard_library(env)
+    pyinterop.register_builtins(env)
     return env
 
 
@@ -717,6 +735,8 @@ def eval_expr(expr: ast.Expr, env: Env) -> Value:
     if isinstance(expr, ast.UnaryExpr):
         value = force_value(eval_expr(expr.expr, env))
         if expr.op in ("-", "+"):
+            if isinstance(value, PyObject):
+                return pyinterop.unary(expr.op, value)
             if not _is_number(value):
                 raise LuneRuntimeError(
                     t("run.unary-numeric", op=expr.op, got=type_name(value)), hints=[t("hint.check-first")]
@@ -758,6 +778,11 @@ def eval_expr(expr: ast.Expr, env: Env) -> Value:
         return None if receiver is None else eval_member(receiver, expr.name)
     if isinstance(expr, ast.AssignExpr):
         return eval_assign(expr, env)
+    if isinstance(expr, ast.IndexExpr):
+        receiver = force_value(eval_expr(expr.receiver, env))
+        if not isinstance(receiver, PyObject):
+            raise LuneRuntimeError(t("run.unsupported-index", type=type_name(receiver)), hints=[t("hint.index-lists")])
+        return pyinterop.get_item(receiver, [eval_expr(arg, env) for arg in expr.args])
     raise LuneRuntimeError(t("run.unsupported-expression", kind=type(expr).__name__))
 
 
@@ -793,6 +818,12 @@ def eval_call(expr: ast.CallExpr, env: Env) -> Value:
     callee = force_value(eval_expr(expr.callee, env))
     if isinstance(callee, RecordConstructorValue):
         return apply_record_constructor(callee, expr.args, env)
+    if isinstance(callee, PyObject):
+        # `name = value` is a Python keyword argument here, the one call site
+        # outside record construction where a label means something.
+        positional = [eval_expr(arg.value, env) for arg in expr.args if arg.name is None]
+        keywords = [(arg.name, eval_expr(arg.value, env)) for arg in expr.args if arg.name is not None]
+        return pyinterop.call(callee, positional, keywords)
     reject_named_args(expr.args)
     if isinstance(callee, BuiltinFunction):
         if callee.force_args:
@@ -921,6 +952,10 @@ def eval_binary(expr: ast.BinaryExpr, env: Env, op_label: str | None = None) -> 
 
     left = force_value(eval_expr(expr.left, env))
     right = force_value(eval_expr(expr.right, env))
+    if (isinstance(left, PyObject) or isinstance(right, PyObject)) and expr.op in pyinterop.BINARY_OPS:
+        # One Py operand puts the whole operation on the Python side, `==`
+        # included: NumPy compares arrays element-wise.
+        return pyinterop.binary(expr.op, left, right)
     # Operand types are checked here as well as in the type checker, because
     # `lune --eval` runs without the latter and Python's own operators would
     # otherwise supply their semantics (`"%d" % 5`, `"ab" * 3`, `true + 1`).
@@ -985,6 +1020,8 @@ def eval_while(expr: ast.WhileExpr, env: Env) -> Value:
 
 def eval_for(expr: ast.ForExpr, env: Env) -> Value:
     current = force_value(eval_expr(expr.iterable, env))
+    if isinstance(current, PyObject):
+        current = pyinterop.iterate(current)
     while True:
         if isinstance(current, DataValue) and current.constructor == "Nil":
             return UNIT
@@ -1068,6 +1105,8 @@ def eval_member(receiver: Value, name: str) -> Value:
         raise LuneRuntimeError(t("run.data-field-access"))
     if isinstance(receiver, str) and name == "length":
         return BuiltinFunction("String.length", lambda args: len(receiver))
+    if isinstance(receiver, PyObject):
+        return pyinterop.get_attr(receiver, name)
     raise LuneRuntimeError(t("run.unsupported-member", receiver=format_value(receiver), name=name))
 
 
@@ -1101,6 +1140,8 @@ def apply_value(function: Value, args: list[Value]) -> Value:
         return apply_constructor(function.constructor, function.bound_fields, values)
     if isinstance(function, FunctionValue):
         return apply_function_to_values(function, args)
+    if isinstance(function, PyObject):
+        return pyinterop.call(function, args, [])
     raise LuneRuntimeError(t("run.not-callable", value=format_value(function)))
 
 
@@ -1212,6 +1253,10 @@ def values_equal(left: Value, right: Value) -> bool:
             if not (isinstance(a, bool) and isinstance(b, bool) and a == b):
                 return False
             continue
+        if isinstance(a, PyObject) or isinstance(b, PyObject):
+            if not pyinterop.equal(a, b):
+                return False
+            continue
         if a is None or b is None:
             if a is not b:
                 return False
@@ -1273,6 +1318,8 @@ def type_name(value: Value) -> str:
         return value.name
     if isinstance(value, TupleValue):
         return "Tuple"
+    if isinstance(value, PyObject):
+        return "Py"
     if _format_callable(value) is not None:
         return "function"
     return type(value).__name__
@@ -1377,6 +1424,8 @@ def format_value(value: Value) -> str:
         return rendered_callable
     if isinstance(value, (int, float)):
         return repr(value)
+    if isinstance(value, PyObject):
+        return pyinterop.format_py(value)
     # Nothing else is a Lune value. Spec: VALUE_DISPLAY_SPEC.md §4 — never let
     # an evaluator object reach the user as a Python repr; name its shape the
     # way preview_value does instead.
@@ -1427,6 +1476,9 @@ def preview_value(value: Value, depth: int = _PREVIEW_DEPTH) -> str:
         return rendered_callable
     if isinstance(value, (int, float)):
         return repr(value)
+    if isinstance(value, PyObject):
+        # Only the Python type: a large array's repr would swamp a trace.
+        return f"<py {type(value.obj).__name__}>"
     return f"<{type(value).__name__}>"
 
 
@@ -1450,3 +1502,7 @@ def _try_render_list(value: DataValue) -> str | None:
 
 def _show_value(value: Value) -> str:
     return format_value(value)
+
+
+# Imported last: lune.pyinterop builds on the value classes defined above.
+from . import pyinterop  # noqa: E402

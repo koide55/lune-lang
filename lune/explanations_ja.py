@@ -149,6 +149,27 @@ import math        # 検索パスに math.lune が見つからない
             None,
             "`module` 宣言を import パスに合わせて直すか、宣言されている名前で import してください。",
         ),
+        _e(
+            "MOD0004",
+            "Python モジュールが使えない",
+            """
+`import python.X` で指定した Python モジュールを、lune を動かしている Python が
+import できません。そこにインストールされていないか、`--no-python` /
+`LUNE_PYTHON=off` で Python の import が無効になっています。
+
+プログラムの読み込み時に確かめるのはモジュールが存在するかどうかだけで、
+実際の import はプログラムが初めてそのモジュールを使うときまで遅らせます。
+            """,
+            """
+import python.numpy as np     # numpy がインストールされていない
+            """,
+            """
+lune を動かしている Python にパッケージをインストールしてください。hint に
+その Python の実行ファイルが書いてあります。PATH 上の `python` や `pip` と同じ
+とは限りません: `/path/to/python -m pip install numpy`。Playground では NumPy・
+SciPy・pandas・scikit-learn をインストールなしで使えます。
+            """,
+        ),
         # --- types ---
         _e(
             "TYP0001",
@@ -445,6 +466,29 @@ let b = a          # どちらを force しても自分に戻ってくる
             """,
             None,
             "具体的な原因はメッセージを読んでください。実行時エラーの多くは `lune --check` が先に見つけてくれるので、まずファイルを型チェックするのがおすすめです。",
+        ),
+        _e(
+            "RUN0007",
+            "Python で例外が発生した",
+            """
+Lune から呼んだ Python のコード（`Py` の値に対する関数・メソッド・演算子・
+添字）が例外を投げました。メッセージには例外の型と、Python 自身による問題の
+説明が出ます。
+
+Lune は書かれた値をそのまま Python に渡すので、原因はたいてい引数にあります。
+形を組み合わせられない配列、綴りを間違えた属性、存在しないキーなどです。
+            """,
+            """
+import python.numpy as np
+
+let a = np.array([1, 2, 3])
+let b = a + np.array([1, 2])   # 形 (3,) と (2,) はブロードキャストできない
+            """,
+            """
+Python のメッセージを読み、呼び出しに渡している値を確かめてください。存在しない
+属性なら、hint がいちばん近い名前を示します。Python のトレースバック全体は
+`--py-traceback` を付けて実行すると表示されます。
+            """,
         ),
     ]
 )

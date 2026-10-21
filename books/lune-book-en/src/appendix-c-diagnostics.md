@@ -30,6 +30,7 @@ You will never meet a code without an explanation. `test_every_emitted_code_has_
 | `MOD0001` | module resolution | module not found or unreadable | 10, 11 | 10 |
 | `MOD0002` | module resolution | cyclic module import | 10, 11 | 10 |
 | `MOD0003` | module resolution | module declaration mismatch | 10, 11 | 10 |
+| `MOD0004` | module resolution | Python module not available | — | — |
 | `PRS0001` | parsing | unexpected token | 2, 6, 11 | 2 |
 | `PRS0002` | parsing | a particular token was required | 10, 11 | — |
 | `REC0001` | record checking | duplicate field in a record declaration | 11 | — |
@@ -40,6 +41,7 @@ You will never meet a code without an explanation. `test_every_emitted_code_has_
 | `REC0006` | record checking | records are built with named fields | 6, 11, 13 | — |
 | `RUN0005` | run time | recursive thunk evaluation | 3, 4, 10, 11, 12 | 4 |
 | `RUN0006` | run time | runtime error | 2, 4, 6, 9, 11, 12 | 4 |
+| `RUN0007` | run time | Python raised an exception | — | — |
 | `TYP0001` | type checking | undefined name | 1, 4, 10, 11, 12 | 1, 4, 11 |
 | `TYP0003` | type checking | type mismatch | 1, 2, 7, 8, 11, 12 | 2, 7 |
 | `TYP0004` | type checking | value is not callable | 3, 11 | — |

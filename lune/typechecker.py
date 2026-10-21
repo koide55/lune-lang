@@ -110,6 +110,25 @@ FLOAT = Type("Double")
 STRING = Type("String")
 UNIT = Type("Unit")
 NULL = Type("Null")
+# A Python object (documents/PYTHON_INTEROP_SPEC.md section 4). Dynamic on the
+# inside -- members, calls, indexing and operators all give `Py` again -- but,
+# unlike `Any`, never assignable to or from a Lune type without a conversion.
+PY = Type("Py")
+
+PYTHON_IMPORT_PREFIX = "python."
+
+
+def is_python_import(path: str) -> bool:
+    return path.startswith(PYTHON_IMPORT_PREFIX)
+
+
+def python_module_name(path: str) -> str:
+    return path[len(PYTHON_IMPORT_PREFIX) :]
+
+
+def import_type(path: str) -> Type:
+    """The type an external import binds its name to."""
+    return PY if is_python_import(path) else ANY
 
 
 def format_function_type(function: FunctionType) -> str:
@@ -257,7 +276,7 @@ def check_module_into(module: ast.ModuleFile, env: TypeEnv, process_imports: boo
     if process_imports:
         for import_decl in module.imports:
             imported_name = import_decl.alias or import_decl.path.rsplit(".", 1)[-1]
-            env.define_value(imported_name, ANY)
+            env.define_value(imported_name, import_type(import_decl.path))
     for decl in module.declarations:
         predeclare_decl(decl, env)
     for decl in module.declarations:
@@ -278,6 +297,7 @@ def initial_type_env() -> TypeEnv:
     env.define_value("tick", builtin_function((), INT))
     env.define_value("tickCount", builtin_function((), INT))
     register_standard_library_types(env)
+    register_python_types(env)
     return env
 
 
@@ -346,6 +366,77 @@ def register_standard_library_types(env: TypeEnv) -> None:
         builtin_function((list_t, list_u, FunctionType((t, u), Type("V"))), Type("List", (Type("V"),)), ("T", "U", "V")),
     )
     env.define_value("cycle", builtin_function((list_t,), list_t, ("T",)))
+
+
+# `toPy` takes any value Python can receive. That set is not a type, so the
+# signature says `T` and infer_call checks the argument against it by identity
+# of this object.
+TO_PY = builtin_function((Type("T"),), PY, ("T",))
+
+
+def register_python_types(env: TypeEnv) -> None:
+    """The conversions between Python and Lune (PYTHON_INTEROP_SPEC.md section 6.1)."""
+    env.define_value("asInt", builtin_function((PY,), INT))
+    env.define_value("asDouble", builtin_function((PY,), FLOAT))
+    env.define_value("asString", builtin_function((PY,), STRING))
+    env.define_value("asBool", builtin_function((PY,), BOOL))
+    env.define_value("asList", builtin_function((PY,), Type("List", (PY,))))
+    env.define_value("asNullable", builtin_function((PY,), Type("Nullable", (PY,))))
+    env.define_value("toPy", TO_PY)
+    env.define_value("pyStr", builtin_function((PY,), STRING))
+    nullable_int = Type("Nullable", (INT,))
+    env.define_value("pySlice", builtin_function((nullable_int, nullable_int), PY))
+
+
+def python_convertible(typ: ValueType) -> bool:
+    """Whether a value of `typ` can be handed to Python (spec section 5.1)."""
+    if not isinstance(typ, Type):
+        return False
+    if typ in {INT, FLOAT, STRING, BOOL, UNIT, NULL, PY, ANY, BOTTOM} or is_type_var(typ):
+        return True
+    if typ.name in {"List", "Nullable"} and len(typ.args) == 1:
+        return python_convertible(typ.args[0])
+    if typ.name == "Tuple":
+        return all(python_convertible(arg) for arg in typ.args)
+    return False
+
+
+def require_python_convertible(typ: ValueType, span: SourceSpan | None) -> None:
+    if not python_convertible(typ):
+        raise LuneTypeError(
+            t("typ.py-unconvertible", type=repr(typ)),
+            "TYP0003",
+            span,
+            t("label.py-unconvertible"),
+            [t("hint.py-convertible")],
+        )
+
+
+_PY_CONVERTERS = {INT: "asInt", FLOAT: "asDouble", STRING: "asString", BOOL: "asBool"}
+
+
+def python_hints(actual: ValueType, expected: ValueType) -> list[str]:
+    """Hints for a type mismatch at the border between Python and Lune.
+
+    `Py` never converts implicitly, so a `Py` where a Lune type is required
+    (or the reverse) names the function that crosses the border.
+    """
+    if actual == PY and isinstance(expected, Type):
+        nullable = expected.name == "Nullable" and bool(expected.args)
+        target = expected.args[0] if nullable else expected
+        hints: list[str] = []
+        if target in _PY_CONVERTERS:
+            hints.append(t("hint.py-convert", fn=_PY_CONVERTERS[target], type=repr(target)))
+        elif target.name == "List":
+            hints.append(t("hint.py-as-list"))
+        if target == BOOL:
+            hints.append(t("hint.py-array-truth"))
+        if nullable:
+            hints.append(t("hint.py-as-nullable"))
+        return hints
+    if expected == PY and python_convertible(actual):
+        return [t("hint.to-py")]
+    return []
 
 
 def predeclare_decl(decl: ast.Decl, env: TypeEnv) -> None:
@@ -482,6 +573,8 @@ def infer_expr(expr: ast.Expr, env: TypeEnv, expected: ValueType | None = None) 
             return Type("Tuple", tuple(ensure_type(infer_expr(arg.value, env)) for arg in expr.args))
         callee_type = infer_expr(expr.callee, env)
         result = infer_call(callee_type, expr.args, env, expr.span)
+        if callee_type is TO_PY and expr.args:
+            require_python_convertible(infer_expr(expr.args[0].value, env), getattr(expr.args[0].value, "span", None) or expr.span)
         if expected is not None and isinstance(expr.callee, ast.NameExpr) and env.has_constructor(expr.callee.name):
             # A constructor application (`Some(x)`, `Err(e)`) leaves type
             # parameters no argument mentions free; the expected type fixes
@@ -528,6 +621,8 @@ def infer_expr(expr: ast.Expr, env: TypeEnv, expected: ValueType | None = None) 
         return FunctionType(params, infer_expr(expr.body, local))
     if isinstance(expr, ast.UnaryExpr):
         value_type = ensure_type(infer_expr(expr.expr, env))
+        if value_type == PY and expr.op in {"-", "+"}:
+            return PY
         if expr.op == "-":
             require_numeric(value_type, t("ctx.unary-minus"))
             return value_type
@@ -577,8 +672,9 @@ def infer_expr(expr: ast.Expr, env: TypeEnv, expected: ValueType | None = None) 
         return UNIT
     if isinstance(expr, ast.ForExpr):
         iterable_type = ensure_type(infer_expr(expr.iterable, env))
-        if iterable_type == ANY:
-            item_type = ANY
+        if iterable_type in {ANY, PY}:
+            # A Python iterable is walked as `asList(...)` is: one Py per item.
+            item_type = iterable_type
         elif iterable_type.name == "List" and len(iterable_type.args) == 1:
             item_type = iterable_type.args[0]
         else:
@@ -668,6 +764,19 @@ def infer_expr(expr: ast.Expr, env: TypeEnv, expected: ValueType | None = None) 
     if isinstance(expr, ast.MemberExpr):
         receiver_type = ensure_type(infer_expr(expr.receiver, env))
         return infer_member_type(receiver_type, expr.name, env, expr.span)
+    if isinstance(expr, ast.IndexExpr):
+        receiver_type = ensure_type(infer_expr(expr.receiver, env))
+        if receiver_type != PY:
+            raise LuneTypeError(
+                t("typ.unsupported-index", type=repr(receiver_type)),
+                "TYP0003",
+                expr.span,
+                t("label.unsupported-index"),
+                [t("hint.index-lists")],
+            )
+        for arg in expr.args:
+            require_python_convertible(infer_expr(arg, env), getattr(arg, "span", None) or expr.span)
+        return PY
     if isinstance(expr, ast.SafeMemberExpr):
         # `receiver?.name`: the receiver must be nullable; the result is the
         # member's type made nullable (null when the receiver is null).
@@ -693,6 +802,8 @@ def infer_expr(expr: ast.Expr, env: TypeEnv, expected: ValueType | None = None) 
 def infer_member_type(receiver_type: Type, name: str, env: TypeEnv, span: SourceSpan | None) -> ValueType:
     if receiver_type == ANY:
         return FunctionType((), ANY)
+    if receiver_type == PY:
+        return PY
     if receiver_type == STRING and name == "length":
         return FunctionType((), INT)
     field_type = lookup_record_field_type(receiver_type, name, env, span)
@@ -820,6 +931,12 @@ def reject_named_args(args: list[ast.Argument], span: SourceSpan | None) -> None
 def infer_call(callee_type: ValueType, args: list[ast.Argument], env: TypeEnv, span: SourceSpan | None = None) -> ValueType:
     if isinstance(callee_type, RecordConstructorType):
         return infer_record_constructor_call(callee_type, args, env, span)
+    if callee_type == PY:
+        # Any number of arguments, and `name = value` is a Python keyword
+        # argument, so TYP0012 does not apply (PYTHON_INTEROP_SPEC.md 5.2).
+        for arg in args:
+            require_python_convertible(infer_expr(arg.value, env), getattr(arg.value, "span", None) or arg.span or span)
+        return PY
     if not isinstance(callee_type, FunctionType):
         raise LuneTypeError(t("typ.not-callable", type=repr(callee_type)), "TYP0004", span, t("label.not-callable"))
     reject_named_args(args, span)
@@ -969,6 +1086,12 @@ def infer_binary(expr: ast.BinaryExpr, env: TypeEnv, op_label: str | None = None
         return BOOL
     left = ensure_type(infer_expr(expr.left, env))
     right = ensure_type(infer_expr(expr.right, env))
+    if PY in (left, right) and expr.op in PY_BINARY_OPS:
+        # Python's operator, with Python's result: `a * 2` broadcasts, and
+        # `a > 0` on an array is an array, not a Bool.
+        require_python_convertible(left, getattr(expr.left, "span", None) or expr.span)
+        require_python_convertible(right, getattr(expr.right, "span", None) or expr.span)
+        return PY
     if expr.op in {"+", "-", "*", "/", "//", "%"}:
         if expr.op == "+" and left == STRING and right == STRING:
             return STRING
@@ -989,6 +1112,9 @@ def infer_binary(expr: ast.BinaryExpr, env: TypeEnv, op_label: str | None = None
         require_assignable(right, left, label)
         return BOOL
     raise LuneTypeError(t("typ.unsupported-binary-op", op=expr.op))
+
+
+PY_BINARY_OPS = {"+", "-", "*", "/", "//", "%", "<", "<=", ">", ">=", "==", "!="}
 
 
 def bind_pattern_types(pattern: ast.Pattern, value_type: Type, env: TypeEnv) -> None:
@@ -1426,7 +1552,7 @@ def unify(expected: Type, actual: Type, substitutions: dict[str, Type]) -> None:
         require_assignable(actual, existing, t("ctx.type-parameter", name=expected.name))
         return
     if expected.name != actual.name or len(expected.args) != len(actual.args):
-        raise LuneTypeError(t("typ.expected-got", expected=repr(expected), actual=repr(actual)))
+        raise LuneTypeError(t("typ.expected-got", expected=repr(expected), actual=repr(actual)), hints=python_hints(actual, expected))
     for expected_arg, actual_arg in zip(expected.args, actual.args, strict=True):
         unify(expected_arg, actual_arg, substitutions)
 
@@ -1551,7 +1677,13 @@ def require_assignable(
         for actual_arg, expected_arg in zip(actual.args, expected.args, strict=True):
             require_assignable(actual_arg, expected_arg, context)
         return
-    raise LuneTypeError(t("typ.context-expected-got", context=context, expected=repr(expected), actual=repr(actual)), "TYP0003", span, label)
+    raise LuneTypeError(
+        t("typ.context-expected-got", context=context, expected=repr(expected), actual=repr(actual)),
+        "TYP0003",
+        span,
+        label,
+        python_hints(actual, expected),
+    )
 
 
 def require_value_assignable(
@@ -1564,7 +1696,13 @@ def require_value_assignable(
     try:
         unify_value(expected, actual, {})
     except LuneTypeError as exc:
-        raise LuneTypeError(t("typ.context-expected-got", context=context, expected=repr(expected), actual=repr(actual)), "TYP0003", span, label) from exc
+        raise LuneTypeError(
+            t("typ.context-expected-got", context=context, expected=repr(expected), actual=repr(actual)),
+            "TYP0003",
+            span,
+            label,
+            python_hints(actual, expected),
+        ) from exc
 
 
 def require_numeric(typ: Type, context: str) -> None:
