@@ -136,7 +136,10 @@ Unit
 Any
 Nothing
 Null
+Py
 ```
+
+`Py` は Python のオブジェクトを表す（`import python.X` とその呼び出し結果）。`Py` へのメンバーアクセス・呼び出し・添字・演算の結果はまた `Py` になるが、Lune の型とは暗黙に変換されない。詳細は `PYTHON_INTEROP_SPEC.md` に定義する。
 
 上記が v0.1 の基本型の全部である。**`Long` / `Float` / `Char` は存在しない** — 数値は `Int`（任意精度）と `Double` の2つ、文字は `String` で表す。文字リテラル `'x'` の型も `String` であり、`Char` を生む式も、文字を扱う標準ライブラリ関数もない。
 
@@ -697,6 +700,8 @@ object.method()
 list[0]
 ```
 
+ただし受け手が `Py`（Python の値）のときは、メソッド呼び出しも添字（`m[1, 2]`）も使える（`PYTHON_INTEROP_SPEC.md` §4.2・§5.3）。
+
 データコンストラクタのフィールドアクセスは未実装であり、`match` を使う。レコードとフィールドアクセスの詳細は `RECORD_FIELD_SPEC.md` に定義する。
 
 ## 14. モジュール
@@ -731,6 +736,16 @@ import java.time.LocalDate
 ```
 
 `java.*`、`javax.*`、`kotlin.*`、`std.*` はファイル解決せず、型チェッカでは末尾名または alias を `Any` として登録する。実 Java 呼び出しは未対応である。
+
+`python.*` は Python のモジュールを import する。末尾名または alias が `Py` 型で束縛され、モジュールの実際の import は初めて使われるときまで遅延される。存在しないモジュールは読み込み時に `MOD0004` になる。
+
+```lune
+import python.numpy as np
+
+let total = asDouble(np.sum(np.array([1.0, 2.0])))
+```
+
+詳細は `PYTHON_INTEROP_SPEC.md` に定義する。
 
 ## 15. 標準ライブラリ
 

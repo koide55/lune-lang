@@ -8,11 +8,20 @@ from . import nodes as ast
 from .diagnostics import Diagnostic, DiagnosticError, Label, SourceMap, SourceSpan
 from .evaluator import Env, eval_module_into, initial_env
 from .parser import parse_source
-from .typechecker import ANY, TypeEnv, check_module_into, initial_type_env
+from .typechecker import (
+    PYTHON_IMPORT_PREFIX,
+    TypeEnv,
+    check_module_into,
+    import_type,
+    initial_type_env,
+    is_python_import,
+    python_module_name,
+)
+from . import pyinterop
 from .messages import t
 
 
-EXTERNAL_IMPORT_PREFIXES = ("java.", "javax.", "kotlin.", "std.")
+EXTERNAL_IMPORT_PREFIXES = ("java.", "javax.", "kotlin.", "std.", PYTHON_IMPORT_PREFIX)
 
 
 class ModuleLoadError(DiagnosticError):
@@ -102,6 +111,7 @@ def load_program(
 
         for import_decl in module.imports:
             if is_external_import(import_decl.path):
+                check_python_import(import_decl)
                 continue
             resolved = resolve_module_path(import_decl.path, search_roots)
             if resolved is None:
@@ -122,6 +132,33 @@ def load_program(
 
     visit(entry_path, entry_import_path)
     return LoadedProgram(entry_path, ordered)
+
+
+def check_python_import(import_decl: ast.ImportDecl) -> None:
+    """Report a `python.X` import that cannot work, at the import (MOD0004).
+
+    Only the module's existence is checked; importing it waits until the
+    program first uses it (PYTHON_INTEROP_SPEC.md section 3.2).
+    """
+    if not is_python_import(import_decl.path):
+        return
+    name = python_module_name(import_decl.path)
+    if not pyinterop.is_enabled():
+        raise ModuleLoadError(
+            t("mod.python-disabled", name=name),
+            "MOD0004",
+            import_decl.span,
+            t("label.python-disabled"),
+            [t("hint.python-disabled")],
+        )
+    if not pyinterop.module_exists(name):
+        raise ModuleLoadError(
+            t("mod.python-not-found", name=name),
+            "MOD0004",
+            import_decl.span,
+            t("label.python-not-found"),
+            [pyinterop.install_hint(name)],
+        )
 
 
 def resolve_module_path(import_path: str, search_roots: Iterable[Path]) -> Path | None:
@@ -186,7 +223,7 @@ def define_external_imports(module: ast.ModuleFile, env: TypeEnv) -> None:
     for import_decl in module.imports:
         if is_external_import(import_decl.path):
             imported_name = import_decl.alias or import_decl.path.rsplit(".", 1)[-1]
-            env.define_value(imported_name, ANY)
+            env.define_value(imported_name, import_type(import_decl.path))
 
 
 def _display_path(path: Path) -> str:

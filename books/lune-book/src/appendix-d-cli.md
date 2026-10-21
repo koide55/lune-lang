@@ -37,6 +37,8 @@ $ lune [--lang en|ja] [--module-path DIR]... [MODE] [FILE]
 | --- | --- |
 | `--lang en\|ja` | 診断の言語。`--lang=ja` の形でも書ける |
 | `--module-path DIR` | モジュールの探索ルートを追加する。**繰り返し指定できる**（第10章） |
+| `--no-python` | `import python.*` を禁止する（`MOD0004` になる）。環境変数 `LUNE_PYTHON=off` でも同じ |
+| `--py-traceback` | Python の例外（`RUN0007`）に、Python のトレースバック全体を添える |
 | `--version` / `-V` | 版番号を表示して終わる |
 | `-h` / `--help` | 使い方を表示する |
 

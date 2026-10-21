@@ -31,6 +31,7 @@ from .explanations import LANGUAGES, render_explanation
 from .messages import get_language, set_language, t
 from .module_loader import (
     ModuleLoadError,
+    check_python_import,
     define_external_imports,
     is_external_import,
     load_program,
@@ -114,7 +115,8 @@ class ReplSession:
         roots = self._search_roots()
         for import_decl in module.imports:
             if is_external_import(import_decl.path):
-                continue                      # java.* and friends stay opaque
+                check_python_import(import_decl)
+                continue                      # java.* stays opaque; python.* binds lazily
             resolved = resolve_module_path(import_decl.path, roots)
             if resolved is None:
                 raise ModuleLoadError(

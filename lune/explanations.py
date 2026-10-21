@@ -163,6 +163,27 @@ A file's `module X` declaration does not match the path it was imported under.
             None,
             "Rename the `module` declaration to match the import path, or import it under its declared name.",
         ),
+        _e(
+            "MOD0004",
+            "Python module not available",
+            """
+An `import python.X` names a Python module that the Python running lune cannot
+import: it is not installed there, or Python imports were turned off with
+`--no-python` / `LUNE_PYTHON=off`.
+
+Only the module's existence is checked when the program is loaded; importing it
+waits until the program first uses it.
+            """,
+            """
+import python.numpy as np     # numpy is not installed
+            """,
+            """
+Install the package into the Python that runs lune — the hint names that
+Python's executable, which is not always the `python` or `pip` on your PATH:
+`/path/to/python -m pip install numpy`. In the Playground, NumPy, SciPy,
+pandas and scikit-learn are available without installing anything.
+            """,
+        ),
         # --- types ---
         _e(
             "TYP0001",
@@ -460,6 +481,30 @@ at run time. An operator applied to operands of the wrong type (`"a" - 1`,
             """,
             None,
             "Read the message for the specific cause. Many runtime errors are caught earlier by `lune --check`, so type-check the file first.",
+        ),
+        _e(
+            "RUN0007",
+            "Python raised an exception",
+            """
+Python code called from Lune — a function, a method, an operator or an index
+on a `Py` value — raised an exception. The message gives the exception's type
+and Python's own description of the problem.
+
+Lune hands Python the values you wrote, so the cause is usually in the
+arguments: arrays whose shapes cannot be combined, a misspelled attribute, a
+key that does not exist.
+            """,
+            """
+import python.numpy as np
+
+let a = np.array([1, 2, 3])
+let b = a + np.array([1, 2])   # shapes (3,) and (2,) do not broadcast
+            """,
+            """
+Read the Python message, then check the values going into the call. For an
+unknown attribute, the hint offers the closest existing name. Run with
+`--py-traceback` to see the full Python traceback.
+            """,
         ),
     ]
 )

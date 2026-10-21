@@ -89,6 +89,14 @@ throws
 
 `abstract` は重複してもよいが、実装上は 1 つのキーワードとして扱う。
 
+キーワードが予約されるのは、構文が始まりうる位置だけである。`.` と `?.` の直後（§9.5 の `member_name`）では、キーワードのトークンも名前として読む。Python の `re.match` や `x.type` を書けるようにするためである（`PYTHON_INTEROP_SPEC.md` §5.4）。
+
+```ebnf
+member_name
+  ::= IDENT
+   |  (any keyword token)
+```
+
 ### 2.5 リテラル
 
 整数:
@@ -766,8 +774,8 @@ postfix
   ::= primary postfix_part*
 
 postfix_part
-  ::= DOT IDENT
-   |  QUESTION_DOT IDENT
+  ::= DOT member_name
+   |  QUESTION_DOT member_name
    |  argument_list_parens
    |  LBRACKET argument_list? RBRACKET
    |  record_update

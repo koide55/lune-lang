@@ -4,7 +4,7 @@
 
 コンパイラ・評価器が発行する全診断コードの詳解カタログ。同じ内容を
 `lune explain <CODE>`、REPL の `:explain CODE`、Playground の explain ボタンでも読める。
-発行されうる全コードに詳解があることはテストで保証される（現在 31 コード）。日本語版: `ERROR_INDEX_JA.md`。
+発行されうる全コードに詳解があることはテストで保証される（現在 33 コード）。日本語版: `ERROR_INDEX_JA.md`。
 
 - [`LAY0001`](#lay0001) — inconsistent indentation
 - [`LAY0002`](#lay0002) — unmatched closing delimiter
@@ -15,6 +15,7 @@
 - [`MOD0001`](#mod0001) — module not found or unreadable
 - [`MOD0002`](#mod0002) — cyclic module import
 - [`MOD0003`](#mod0003) — module declaration mismatch
+- [`MOD0004`](#mod0004) — Python module not available
 - [`PRS0001`](#prs0001) — unexpected token
 - [`PRS0002`](#prs0002) — expected a specific token
 - [`REC0001`](#rec0001) — duplicate record field
@@ -25,6 +26,7 @@
 - [`REC0006`](#rec0006) — record fields must be named
 - [`RUN0005`](#run0005) — recursive thunk evaluation
 - [`RUN0006`](#run0006) — runtime error
+- [`RUN0007`](#run0007) — Python raised an exception
 - [`TYP0001`](#typ0001) — undefined name
 - [`TYP0003`](#typ0003) — type mismatch
 - [`TYP0004`](#typ0004) — value is not callable
@@ -174,6 +176,30 @@ A file's `module X` declaration does not match the path it was imported under.
 How to fix:
 
 Rename the `module` declaration to match the import path, or import it under its declared name.
+
+## MOD0004
+
+**Python module not available**
+
+An `import python.X` names a Python module that the Python running lune cannot
+import: it is not installed there, or Python imports were turned off with
+`--no-python` / `LUNE_PYTHON=off`.
+
+Only the module's existence is checked when the program is loaded; importing it
+waits until the program first uses it.
+
+Example that triggers it:
+
+```lune
+import python.numpy as np     # numpy is not installed
+```
+
+How to fix:
+
+Install the package into the Python that runs lune — the hint names that
+Python's executable, which is not always the `python` or `pip` on your PATH:
+`/path/to/python -m pip install numpy`. In the Playground, NumPy, SciPy,
+pandas and scikit-learn are available without installing anything.
 
 ## PRS0001
 
@@ -361,6 +387,33 @@ at run time. An operator applied to operands of the wrong type (`"a" - 1`,
 How to fix:
 
 Read the message for the specific cause. Many runtime errors are caught earlier by `lune --check`, so type-check the file first.
+
+## RUN0007
+
+**Python raised an exception**
+
+Python code called from Lune — a function, a method, an operator or an index
+on a `Py` value — raised an exception. The message gives the exception's type
+and Python's own description of the problem.
+
+Lune hands Python the values you wrote, so the cause is usually in the
+arguments: arrays whose shapes cannot be combined, a misspelled attribute, a
+key that does not exist.
+
+Example that triggers it:
+
+```lune
+import python.numpy as np
+
+let a = np.array([1, 2, 3])
+let b = a + np.array([1, 2])   # shapes (3,) and (2,) do not broadcast
+```
+
+How to fix:
+
+Read the Python message, then check the values going into the call. For an
+unknown attribute, the hint offers the closest existing name. Run with
+`--py-traceback` to see the full Python traceback.
 
 ## TYP0001
 

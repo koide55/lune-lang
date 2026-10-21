@@ -16,6 +16,7 @@ from .lexer import lex
 from .layout import apply_layout
 from .module_loader import check_file, eval_file
 from .parser import parse_source
+from . import pyinterop
 from .repl import repl_main
 
 
@@ -192,6 +193,28 @@ def _extract_lang(argv: list[str]) -> tuple[list[str], str | None]:
     return rest, lang
 
 
+def _extract_python_flags(argv: list[str]) -> list[str]:
+    """Pull out `--no-python` / `--py-traceback` anywhere in argv, the way
+    `--lang` is, so they also reach the REPL and the subcommands.
+
+    Both switches are process-wide and are set on every call, so one `main()`
+    in a test cannot leak its choice into the next.
+    """
+    enabled = os.environ.get("LUNE_PYTHON", "").lower() != "off"
+    show_traceback = False
+    rest: list[str] = []
+    for arg in argv:
+        if arg == "--no-python":
+            enabled = False
+        elif arg == "--py-traceback":
+            show_traceback = True
+        else:
+            rest.append(arg)
+    pyinterop.set_enabled(enabled)
+    pyinterop.set_show_traceback(show_traceback)
+    return rest
+
+
 def main(argv: list[str] | None = None) -> int:
     if argv is None:
         argv = sys.argv[1:]
@@ -199,6 +222,7 @@ def main(argv: list[str] | None = None) -> int:
     if env_lang is not None:
         set_language(env_lang)  # invalid values fall back to "en"
     argv, lang = _extract_lang(argv)
+    argv = _extract_python_flags(argv)
     if lang is not None:
         if lang not in LANGUAGES:
             print(f"error: unsupported language {lang!r} (supported: {', '.join(LANGUAGES)})", file=sys.stderr)
@@ -229,6 +253,9 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--eval", metavar="NAME", help="evaluate the file and print a top-level binding")
     parser.add_argument("--trace", action="store_true", help="with --eval: trace lazy evaluation to stderr")
     parser.add_argument("--module-path", action="append", default=[], help="add a module search root")
+    # Listed here only so `--help` mentions them; _extract_python_flags handles them.
+    parser.add_argument("--no-python", action="store_true", help="refuse `import python.*` (also LUNE_PYTHON=off)")
+    parser.add_argument("--py-traceback", action="store_true", help="show the full Python traceback of RUN0007")
     args = parser.parse_args(argv)
 
     if args.repl:

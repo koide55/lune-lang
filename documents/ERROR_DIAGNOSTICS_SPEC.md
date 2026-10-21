@@ -99,6 +99,7 @@ v0.1 で実際に発行されるコード（正は `lune/explanations.py` のカ
 | `MOD0001` | module | module not found or unreadable |
 | `MOD0002` | module | cyclic module import |
 | `MOD0003` | module | module declaration mismatch |
+| `MOD0004` | module | Python module not available (`import python.X`) |
 | `TYP0001` | typechecker | undefined name |
 | `TYP0003` | typechecker | type mismatch |
 | `TYP0004` | typechecker | value is not callable |
@@ -119,8 +120,9 @@ v0.1 で実際に発行されるコード（正は `lune/explanations.py` のカ
 | `REC0006` | record | record fields must be named |
 | `RUN0005` | runtime | recursive thunk evaluation |
 | `RUN0006` | runtime | runtime error (generic) |
+| `RUN0007` | runtime | Python raised an exception |
 
-runtime エラーは、再帰サンクの force（専用コード `RUN0005`、hint 付き）を除き、現状ほぼすべて汎用の `RUN0006` に集約される（未定義変数、失敗サンクの force、標準ライブラリの型不一致、実行時の非網羅 match、演算子の被演算子の型不一致など）。演算子（`+ - * / // % < <= > >=`、単項 `- +`）の被演算子と、Bool を要求する位置（`if`/`elif`/`while` の条件、`&&`/`||`/`!`、match ガード、述語）は evaluator 側でも型を検査する。型検査を経由しない `lune --eval` で型の合わないコードが実行されても、ホスト言語（Python）の演算子の意味論や例外がそのまま漏れることはなく、`lune --check` を促す hint 付きの `RUN0006` になる（issue #94）。`TYP0002` は欠番。REPL コマンドのエラーは診断コードではなくプレーンな文字列で返す。各コードの詳解は `lune explain <CODE>` で読め、テスト `tests/test_explanations.py` が「発行されうる全コードに詳解が存在すること」を保証する。
+runtime エラーは、再帰サンクの force（専用コード `RUN0005`、hint 付き）を除き、現状ほぼすべて汎用の `RUN0006` に集約される（未定義変数、失敗サンクの force、標準ライブラリの型不一致、実行時の非網羅 match、演算子の被演算子の型不一致など）。演算子（`+ - * / // % < <= > >=`、単項 `- +`）の被演算子と、Bool を要求する位置（`if`/`elif`/`while` の条件、`&&`/`||`/`!`、match ガード、述語）は evaluator 側でも型を検査する。型検査を経由しない `lune --eval` で型の合わないコードが実行されても、ホスト言語（Python）の演算子の意味論や例外がそのまま漏れることはなく、`lune --check` を促す hint 付きの `RUN0006` になる（issue #94）。`TYP0002` は欠番。Python 相互運用（`PYTHON_INTEROP_SPEC.md`）は、Python のコードが投げた例外だけを専用の `RUN0007` で報告する — Python の意味論が働くのは `Py` 型の値の内側だけなので、#94 の「漏らさない」方針とは境界が型で分かれている。REPL コマンドのエラーは診断コードではなくプレーンな文字列で返す。各コードの詳解は `lune explain <CODE>` で読め、テスト `tests/test_explanations.py` が「発行されうる全コードに詳解が存在すること」を保証する。
 
 ### 4.1 コード詳解（`lune explain`）
 

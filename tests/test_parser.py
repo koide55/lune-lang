@@ -179,6 +179,16 @@ let answer =
         self.assertIsNotNone(fn.body.result.span)
         self.assertEqual(fn.body.result.span.start_line, 8)
 
+    def test_keywords_are_names_after_a_dot(self) -> None:
+        # Python's `re.match` and `x.type` (PYTHON_INTEROP_SPEC.md section 5.4).
+        module = parse_source("let a = re.match(p, s)\nlet b = x.type\nlet c = y?.in\n")
+        call = module.declarations[0].value
+        self.assertIsInstance(call, ast.CallExpr)
+        self.assertEqual(call.callee.name, "match")
+        self.assertEqual(module.declarations[1].value.name, "type")
+        self.assertIsInstance(module.declarations[2].value, ast.SafeMemberExpr)
+        self.assertEqual(module.declarations[2].value.name, "in")
+
 
 if __name__ == "__main__":
     unittest.main()
