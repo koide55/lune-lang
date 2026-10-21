@@ -100,7 +100,9 @@ hint には **lune を動かしている Python の実行ファイル**を示す
 ### 3.3 REPL と Playground
 
 - REPL（`repl.py`）は現在外部 import を「opaque なので読み飛ばす」扱いにしている（`repl.py:116`）。`python.*` だけは値環境にも束縛する。
-- Playground（Pyodide）では、実行前にソース中の `import python.X` を拾い、`pyodide.loadPackage` で該当パッケージを読み込む。Pyodide には NumPy・SciPy・pandas・scikit-learn・matplotlib が同梱されているので、**ブラウザだけで NumPy を使う Lune** が成立する（PyTorch は Pyodide にないため対象外）。
+- Playground（Pyodide）では、実行・型チェック・REPL の送信の前に、全ファイルタブ（REPL では入力も）の `import python.X` を実際のパーサで拾い、`pyodide.loadPackagesFromImports` に渡す（`playground/index.html` の `lune_python_imports` と `ensurePythonPackages`）。import 名とパッケージ名の対応（`sklearn` → scikit-learn）と、標準ライブラリを読み飛ばすことは Pyodide 側が受け持つので、Lune 側はパッケージの一覧を持たない。Pyodide には NumPy・SciPy・pandas・scikit-learn・matplotlib が同梱されているので、**ブラウザだけで NumPy を使う Lune** が成立する。
+- Pyodide にないパッケージ（PyTorch など）は、ローカルと同じく `MOD0004` になる。Playground では pip を勧めても意味がないので、hint は「Pyodide が提供するパッケージだけが使える」に替わる（`sys.platform == "emscripten"` で判定）。
+- 一度読み込みを依頼した import は覚えておき、二度目からは Pyodide を呼ばない。読み込みに失敗したとき（オフラインなど）は忘れて、次の実行で再び試す。
 
 ## 4. `Py` 型
 
@@ -410,7 +412,7 @@ error[RUN0007]: Python で例外が発生しました: ValueError: operands coul
 ### 第 2 段階: Lune の関数を Python に渡す・Playground
 
 - Lune の関数を Python の callable に変換する（`scipy.optimize.minimize(f, x0)`、`sorted(xs, key = f)`）。Python から受け取る引数は `PyObject` で包んで渡し、戻り値は §5.1 で変換する。callable の静的型は `Py -> ... -> T`（T は Python に渡せる型）に限る。
-- Playground で `import python.X` から `loadPackage` を自動で行う。
+- Playground で `import python.X` から `loadPackage` を自動で行う。 — **実装済み**（§3.3）
 - 教科書に「Python の力を借りる」章（または付録）を追加する。
 
 ### 第 3 段階: 書き心地
