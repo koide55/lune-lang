@@ -41,6 +41,22 @@ fetch して Pyodide のファイルシステムに書き込み、`check_file` /
   当時の見立て「複数ファイルを Pyodide FS に書けば動くはず」はそのとおりで、
   `--module-path` すら要らなかった (下の「複数ファイル」を参照)。
 
+## Python のパッケージ (`import python.X`)
+
+`import python.numpy as np` を含むプログラムは、Playground でもそのまま動く。
+実行・型チェック・REPL の送信の前に、ページが全ファイルの `import python.X` を
+集めて `pyodide.loadPackagesFromImports` に渡し、NumPy などを読み込んでから
+処理系を呼ぶ。プリセット「NumPy を使う」がその見本。
+
+- import を拾うのは処理系のパーサ (ドライバの `lune_python_imports`)。
+  正規表現ではないので、文字列やコメントの中の `import` に反応しない
+- `sklearn` → scikit-learn のような名前の対応と、`math` / `random` など標準
+  ライブラリの読み飛ばしは Pyodide がやる。ページはパッケージ一覧を持たない
+- 初回は NumPy で 1 秒弱、scikit-learn で 2 秒弱かかった (CDN、ヘッドレス Chrome)。
+  二度目からは読み込み済みなので待たない
+- Pyodide にないもの (PyTorch など) は `MOD0004`。hint は pip ではなく
+  「Pyodide が提供するパッケージだけ」を案内する
+
 ## REPL
 
 右カラムは「出力」と「REPL」のタブになっている。REPL タブは端末の `lune --repl`

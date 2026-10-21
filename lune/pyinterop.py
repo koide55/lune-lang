@@ -86,6 +86,10 @@ def module_exists(name: str) -> bool:
 
 
 def install_hint(name: str) -> str:
+    if sys.platform == "emscripten":
+        # The Playground (Pyodide): there is no pip to point at, and the page
+        # loads every package Pyodide has before the program is checked.
+        return t("hint.python-playground")
     return t("hint.python-install", python=sys.executable or "python3", package=name.split(".", 1)[0])
 
 

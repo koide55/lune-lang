@@ -95,6 +95,10 @@ MESSAGES: dict[str, tuple[str, str]] = {
         "install it with `{python} -m pip install {package}` (this is the Python that runs lune)",
         "`{python} -m pip install {package}` でインストールできます（lune を動かしている Python です）",
     ),
+    "hint.python-playground": (
+        "in the Playground, only packages that Pyodide provides can be imported (NumPy, SciPy, pandas, scikit-learn and more)",
+        "Playground で import できるのは Pyodide が提供するパッケージだけです（NumPy・SciPy・pandas・scikit-learn など）",
+    ),
     "mod.python-disabled": ("Python imports are disabled: {name}", "Python の import は無効になっています: {name}"),
     "label.python-disabled": ("Python imports are turned off", "Python の import が無効"),
     "hint.python-disabled": (
