@@ -33,6 +33,8 @@ IDENT       = IDENT_START IDENT_PART*
 
 A lone `_` is the wildcard pattern; `_name` is an identifier.
 
+Right after `.` and `?.`, a keyword is read as a name (`re.match`, `x.type`). Nothing can start there, so there is nothing to reserve it for (chapter 14).
+
 ### Literals
 
 | Kind | Example | Type |
@@ -182,6 +184,8 @@ tuple      ::= "(" expr "," expr ("," expr)* ")"
 
 Building a `record` is a special form of call syntax in which **field names are required** (`User(name = "Ada", age = 36)`). Functions and ADT constructors are called positionally (naming them gives `TYP0012`).
 
+The exception is a callee of type `Py`: there `name = value` is a Python keyword argument. Indexing `e[k, ...]` likewise works only when the receiver is a `Py`.
+
 ### Patterns
 
 ```ebnf
@@ -202,10 +206,10 @@ The pattern of a `let` must be **irrefutable**. `let Some(x) = ...` gives `TYP00
 ### Basic types
 
 ```text
-Bool  Int  Double  String  Unit  Any  Nothing  Null
+Bool  Int  Double  String  Unit  Any  Nothing  Null  Py
 ```
 
-`Int` is arbitrary precision. `Nothing` is the type with no values (the result type of `crash()`).
+`Int` is arbitrary precision. `Nothing` is the type with no values (the result type of `crash()`). `Py` is a Python object (an `import python.X` and the results of calling into it); it crosses to and from Lune types only through conversion functions such as `asInt` (chapter 14).
 
 **That is all of the basic types.** `Long`, `Float` and `Char`, which other languages might lead you to expect, do not exist in v0.1. There is one integer type, `Int` (arbitrary precision, so there is no reason to separate a `Long`), one fractional type, `Double`, and characters are `String`. Writing one in a type annotation is treated exactly as a misspelled type name, giving `TYP0003`.
 

@@ -1,0 +1,11 @@
+module broadcast
+import python.numpy as np
+
+# Arrays whose shapes do not fit raise a Python exception.
+let a = np.array([1, 2, 3])
+
+let b = np.array([1, 2])
+
+let combined = a + b
+
+let typo = np.summ(a)

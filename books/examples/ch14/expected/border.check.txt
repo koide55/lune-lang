@@ -1,0 +1,7 @@
+error[TYP0003]: let の型注釈: Int が必要ですが、Py が見つかりました
+  --> border.lune:7:18
+  |
+7 | let total: Int = np.sum(scores)
+  |                  ^^ この式の型は Py
+   = hint: Python の値は `asInt(...)` で Int に変換できます
+   = help: 詳しくは `lune explain TYP0003 --lang ja` を実行してください

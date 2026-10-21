@@ -1,6 +1,6 @@
 # Appendix B: Standard Library Reference
 
-All 41 names in the prelude. No `import` is needed: they are visible from the start, in every file and in the REPL.
+All 50 names in the prelude. No `import` is needed: they are visible from the start, in every file and in the REPL.
 
 To know what the implementation in front of you actually has, the surest thing is to ask the REPL.
 
@@ -215,6 +215,41 @@ deepForce x      # evaluate x all the way down
 ```
 
 They are the tools for controlling the order and depth of evaluation, covered in §4.7.
+
+## B.9 The border with Python
+
+These functions move values between Python (the `Py` type) and Lune (chapter 14). The ones beginning with `as` convert a `Py` into a Lune type and stop with `RUN0006` when they cannot. `asBool` does not accept "truthy" values; only a Python boolean becomes a `Bool`.
+
+| Name | Type | Meaning |
+| --- | --- | --- |
+| `asInt` | `Py -> Int` | an integer (NumPy's too) as an `Int`; booleans are refused |
+| `asDouble` | `Py -> Double` | a real number (integers too) as a `Double` |
+| `asString` | `Py -> String` | a string as a `String` |
+| `asBool` | `Py -> Bool` | a boolean (NumPy's too) as a `Bool` |
+| `asList` | `Py -> List[Py]` | anything iterable as a **lazy list**; an infinite iterator is fine |
+| `asNullable` | `Py -> Nullable[Py]` | Python's `None` as `null`, anything else unchanged |
+| `toPy` | `[T] T -> Py` | a Lune value as a Python value (only types Python can receive) |
+| `pyStr` | `Py -> String` | Python's `str()` |
+| `pySlice` | `Nullable[Int] -> Nullable[Int] -> Py` | Python's `slice(start, stop)`; `m[pySlice(null, null), 0]` is `m[:, 0]` |
+
+```text
+lune> import python.math
+ok
+lune> math.floor(2.7)
+2 : Py
+lune> asInt(math.floor(2.7))
+2 : Int
+lune> asDouble(math.pi)
+3.141592653589793 : Double
+lune> map(asList(toPy([1, 2, 3])), asInt)
+(1 2 3) : List[Int]
+lune> asNullable(toPy(()))
+null : Nullable[Py]
+lune> pyStr(toPy([1, 2]))
+"[1, 2]" : String
+```
+
+The result of `asList` is a lazy list, so in terms of the infinite-list column it is a producer: wrap Python's `itertools.count()` and `take` still pulls out only what it needs.
 
 ## Where this appendix comes from
 

@@ -180,7 +180,7 @@ Python 呼び出しの引数・添字・演算の相手として Lune の値を�
 | `List[T]`（T が変換可能） | `list` | **全要素を force する**（§8.1） |
 | `Tuple[...]` | `tuple` | |
 | `Py` | 中身のオブジェクト | 変換なし（同一オブジェクト） |
-| 関数 `A -> B` | Python の callable | 第 2 段階（§11）。呼び出し時の引数は `Py` で受ける |
+| 関数 `Py -> ... -> T`（T は表の型） | Python の callable | §5.5。引数は `Py` で受け、結果はこの表で変換して返す |
 
 Lune → Python の方向を自動にするのは、`np.array([1.0, 2.0])` を書けないと実用にならないからである。この方向は情報を失わない（Lune の値は Python の値に一意に写る）ので、暗黙でも驚きは少ない。逆方向（§6）は一意に決まらないので明示にする。
 
@@ -215,6 +215,34 @@ let first = asString(m.group(1))             # "12"
 ```
 
 `type`・`in`・`try`・`lazy`・`force` なども同様に書ける。この規則は受け手の型によらない構文上のものだが、名前として意味を持つのは実際には `Py` のメンバーだけである（レコードのフィールド名にキーワードは使えない）。
+
+### 5.5 Lune の関数を Python に渡す
+
+`sorted` の `key`、`functools.reduce`、`np.vectorize` のように、Python のライブラリには関数を受け取るものが多い。Lune の関数（`def`、ラムダ、`asInt` などの組み込み、コンストラクタ）は Python の callable に変換して渡せる。
+
+```lune
+import python.builtins as py
+import python.numpy as np
+
+def byLast(x: Py): Int = asInt(x) % 10
+
+let xs = [31, 12, 23, 44]
+let a = py.sorted(xs, key = fn x -> asInt(x) % 10)        # [31, 12, 23, 44]
+let b = py.sorted(xs, key = byLast, reverse = true)        # [44, 23, 12, 31]
+let c = py.sorted([toPy(2.5), toPy(1)], key = asDouble)    # 組み込みもそのまま渡せる
+let d = np.vectorize(fn x -> asDouble(x) * 2.0)(np.arange(3))
+```
+
+**型の規則。** Python に渡せる関数は、すべての引数が `Py`（または `Any`）で、結果が §5.1 の表の型であるものに限る。Python は関数を Python の値で呼ぶので、Lune の型の引数（`def inc(x: Int): Int`）は受け取れない。その場合は `Py` で受けて中で変換する、という hint を出す。結果が Python に渡せない型（`fn x -> Some(x)`）のときは、結果の型を名指しする hint を出す。
+
+**ラムダの引数は `Py` とみなす。** Python 呼び出しの引数の位置に直接書いたラムダは、注釈のない引数を `Py` とする（`typechecker.infer_python_argument`）。それ以外の位置の注釈なしラムダは従来どおり `Any` になり、`TYP0010` の警告が出る。`fn x -> asInt(x) % 10` を注釈なしで書けるのは、そのラムダを呼ぶのが Python だと分かっている位置だけである。
+
+**実行時の振る舞い**（`pyinterop._as_python_callable`）:
+
+- Python から渡された引数は `PyObject` で包み、結果は `to_python` で全体を force して返す。この向きの呼び出しも正格境界である（§8.1）。
+- 引数の数は Python 側で検査する。カリー化された Lune の関数は、引数が足りなければ関数を返してしまい、それは Python 側の意図ではないためである。数が合わないとき、またはキーワード引数で呼ばれたときは、Python の `TypeError` を送出する。Lune 側には `RUN0007` として届く（`` Lune function `<lambda>` takes 1 argument, got 2 ``）。
+- 関数の中で起きた Lune の診断は、間にある Python のコードを素通りし、元のコードのまま届く。`RUN0007` で包むと、Lune 側の誤りが Python の誤りに見えてしまうためである。
+- レコードのコンストラクタは渡せない。名前付きでしか構築できず、Python は位置引数で呼ぶからである。
 
 ## 6. Python → Lune（明示的な変換）
 
@@ -375,7 +403,7 @@ error[RUN0007]: Python で例外が発生しました: ValueError: operands coul
 - 実行時エラーには、Lune の他の実行時エラーと同じくソース位置が付かない（評価器が span を持ち回っていないため）。
 - `AttributeError` には、属性名の綴り違いを想定して `dir()` からいちばん近い名前を `did you mean` で示す。
 - `KeyboardInterrupt` / `SystemExit` は翻訳せずにそのまま通す。
-- Lune の関数を Python に渡した場合（§11）、その中で起きた `LuneRuntimeError` は Python 側を素通りさせて元の診断のまま出す（`RUN0007` で包まない）。
+- Lune の関数を Python に渡した場合（§5.5）、その中で起きた `LuneRuntimeError` は Python 側を素通りさせて元の診断のまま出す（`RUN0007` で包まない）。
 
 既存コードへの追加:
 
@@ -411,7 +439,7 @@ error[RUN0007]: Python で例外が発生しました: ValueError: operands coul
 
 ### 第 2 段階: Lune の関数を Python に渡す・Playground
 
-- Lune の関数を Python の callable に変換する（`scipy.optimize.minimize(f, x0)`、`sorted(xs, key = f)`）。Python から受け取る引数は `PyObject` で包んで渡し、戻り値は §5.1 で変換する。callable の静的型は `Py -> ... -> T`（T は Python に渡せる型）に限る。
+- Lune の関数を Python の callable に変換する（`scipy.optimize.minimize(f, x0)`、`sorted(xs, key = f)`）。Python から受け取る引数は `PyObject` で包んで渡し、戻り値は §5.1 で変換する。callable の静的型は `Py -> ... -> T`（T は Python に渡せる型）に限る。 — **実装済み**（§5.5）
 - Playground で `import python.X` から `loadPackage` を自動で行う。 — **実装済み**（§3.3）
 - 教科書に「Python の力を借りる」章（または付録）を追加する。
 

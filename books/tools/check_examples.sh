@@ -12,7 +12,12 @@
 #   fmt_is     FILE EXPECT          lune fmt の整形結果が期待ファイルと一致すること
 #
 # 診断出力中の絶対パスは、その例のディレクトリからの相対パスに正規化して比較する
-# （紙面の表記規約と同じ）。
+# （紙面の表記規約と同じ）。MOD0004 の hint に出る「lune を動かしている Python」の
+# 実行ファイルも、環境ごとに違うので `python3` に正規化する。
+#
+# 第14章の例の多くは NumPy を使う。NumPy が無ければその検査は飛ばす（処理系は
+# 標準ライブラリだけで動くので、本の検証のためだけに入れさせない）。CI は
+# LUNE_BOOK_REQUIRE_NUMPY=1 を付けて回し、飛ばしたら失敗にする。
 
 set -u
 BOOKS_DIR="$(cd "$(dirname "$0")/.." && pwd)"
@@ -43,6 +48,22 @@ chapter() { # ディレクトリが無ければ、その章の検査をまとめ
     fi
 }
 skipping() { [ "$skip" -eq 1 ]; }
+
+needs_numpy() { # ここから章の終わりまで、NumPy が無ければ飛ばす
+    skipping && return 0
+    python3 -c "import numpy" 2> /dev/null && return 0
+    if [ "${LUNE_BOOK_REQUIRE_NUMPY:-}" = 1 ]; then
+        ng "NumPy is required here (LUNE_BOOK_REQUIRE_NUMPY=1): python3 -m pip install numpy"
+    else
+        echo "skip: NumPy が無いので、この章の残りの検査を飛ばします (python3 -m pip install numpy)"
+    fi
+    skip=1
+}
+
+# 紙面の表記に揃える: 例のディレクトリは相対パスに、Python の実行ファイルは python3 に
+normalize() {
+    sed "s|$PWD/||g; s|$PWD|.|g; s|\`[^\` ]*python[0-9.]* -m pip|\`python3 -m pip|g"
+}
 
 pass=0
 fail=0
@@ -84,7 +105,7 @@ diag_is() {
         ng "--check $1: unexpectedly passed"
         return
     fi
-    out=$(printf '%s\n' "$out" | sed "s|$PWD/||g; s|$PWD|.|g")
+    out=$(printf '%s\n' "$out" | normalize)
     if printf '%s\n' "$out" | diff -u "$2" - > /dev/null; then
         ok
     else
@@ -126,7 +147,7 @@ check_warn_is() { # file expect
         ng "--check $1: unexpectedly failed"
         return
     fi
-    out=$(printf '%s\n' "$out" | sed "s|$PWD/||g; s|$PWD|.|g")
+    out=$(printf '%s\n' "$out" | normalize)
     if printf '%s\n' "$out" | diff -u "$2" - > /dev/null; then
         ok
     else
@@ -143,7 +164,7 @@ eval_diag_is() { # file binding expect
         ng "--eval $2 $1: unexpectedly succeeded"
         return
     fi
-    out=$(printf '%s\n' "$out" | sed "s|$PWD/||g; s|$PWD|.|g")
+    out=$(printf '%s\n' "$out" | normalize)
     if printf '%s\n' "$out" | diff -u "$3" - > /dev/null; then
         ok
     else
@@ -499,6 +520,70 @@ eval_is answers/ex13-1.lune summary expected/ex13-1.summary.txt
 eval_is answers/ex13-1.lune emptySummary expected/ex13-1.emptySummary.txt
 
 fmt_ok stats.lune ledger/entry.lune ledger_main.lune collatz.lune counted.lune answers/ex13-1.lune
+
+# ----- 第14章 -----
+chapter ch14
+
+# 標準ライブラリだけで動く例
+check_ok regex.lune
+eval_is regex.lune left expected/regex.left.txt
+eval_is regex.lune name expected/regex.name.txt
+eval_is regex.lune nothing expected/regex.nothing.txt
+
+check_ok stream.lune
+eval_is stream.lune firstFive expected/stream.firstFive.txt
+
+check_ok dice.lune
+eval_is dice.lune lazyPair expected/dice.lazyPair.txt
+eval_is dice.lune strictPair expected/dice.strictPair.txt
+
+check_ok shuffle.lune
+eval_is shuffle.lune after expected/shuffle.after.txt
+eval_is shuffle.lune picked expected/shuffle.picked.txt
+
+diag_is callback_bad.lune expected/callback_bad.check.txt
+diag_is missing.lune expected/missing.check.txt
+
+check_ok answers/ex14-1.lune
+eval_is answers/ex14-1.lune median expected/ex14-1.median.txt
+eval_is answers/ex14-1.lune mean expected/ex14-1.mean.txt
+
+check_ok answers/ex14-3.lune
+eval_is answers/ex14-3.lune byLength expected/ex14-3.byLength.txt
+
+fmt_ok *.lune answers/*.lune
+
+# NumPy を使う例
+needs_numpy
+
+check_ok scores.lune
+eval_is scores.lune mean expected/scores.mean.txt
+eval_is scores.lune best expected/scores.best.txt
+eval_is scores.lune normalized expected/scores.normalized.txt
+
+diag_is border.lune expected/border.check.txt
+diag_is truth.lune expected/truth.check.txt
+
+check_ok matrix.lune
+eval_is matrix.lune columnSums expected/matrix.columnSums.txt
+eval_is matrix.lune corner expected/matrix.corner.txt
+eval_is matrix.lune firstColumn expected/matrix.firstColumn.txt
+
+check_ok callbacks.lune
+eval_is callbacks.lune byLast expected/callbacks.byLast.txt
+eval_is callbacks.lune byLastDesc expected/callbacks.byLastDesc.txt
+eval_is callbacks.lune total expected/callbacks.total.txt
+eval_is callbacks.lune doubled expected/callbacks.doubled.txt
+
+eval_diag_is broadcast.lune combined expected/broadcast.combined.txt
+eval_diag_is broadcast.lune typo expected/broadcast.typo.txt
+
+check_ok answers/ex14-2.lune
+eval_is answers/ex14-2.lune verdict expected/ex14-2.verdict.txt
+
+check_ok answers/ex14-4.lune
+eval_is answers/ex14-4.lune x expected/ex14-4.x.txt
+eval_is answers/ex14-4.lune y expected/ex14-4.y.txt
 
 # ----- 結果 -----
 echo "passed: $pass, failed: $fail"

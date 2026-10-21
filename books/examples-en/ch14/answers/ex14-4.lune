@@ -1,0 +1,9 @@
+module ex14_4
+import python.numpy as np
+
+# Exercise 14-4: draw the random numbers in one call, and the order of forcing no longer matters.
+let draws = map(asList(np.random.default_rng(42).random(2)), asDouble)
+
+let x = head(draws)
+
+let y = head(drop(draws, 1))

@@ -98,6 +98,8 @@ is wrong or you have found something interesting.
 - **Part III (chapters 11–13)** — the compiler and the tools. Reading
   diagnostics, the REPL and the formatter, and case studies that put it
   together.
+- **Part IV (chapter 14)** — reaching Python. Using NumPy and other Python
+  libraries from Lune without giving up the type checker's protection.
 - **Appendices A–E** — the reference half. Grammar, standard library, the
   diagnostic catalogue, the CLI and REPL, and the design rationale.
 

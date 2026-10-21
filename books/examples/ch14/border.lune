@@ -1,0 +1,7 @@
+module border
+import python.numpy as np
+
+# Py は暗黙には Int にならない。
+let scores = np.array([72, 85, 90])
+
+let total: Int = np.sum(scores)

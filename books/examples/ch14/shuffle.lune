@@ -1,0 +1,11 @@
+module shuffle
+import python.random
+
+# Lune のリストは渡すたびに Python のリストへ写される。並べ替わるのはその写し。
+let xs = [1, 2, 3, 4, 5]
+
+let result = random.shuffle(xs)
+
+let after = (result, xs)
+
+let picked = map(asList(random.Random(7).sample(xs, 3)), asInt)

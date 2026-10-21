@@ -1,0 +1,14 @@
+module regex
+import python.re
+import python.json
+
+# 標準ライブラリも同じ書き方で使える。match は Lune のキーワードだが、. の後ろでは名前。
+let found = re.match("(\\d+)-(\\d+)", "12-34")
+
+let left = asString(found.group(1))
+
+let person = json.loads("{\"name\": \"Ada\", \"age\": 36}")
+
+let name = asString(person["name"])
+
+let nothing = asNullable(re.match("x", "abc"))
