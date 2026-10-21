@@ -13,11 +13,16 @@ directory; nothing else about the code is changed.
 
 from __future__ import annotations
 
+import importlib.util
 import json
 import re
+import sys
 import tempfile
 import unittest
 from pathlib import Path
+from unittest import mock
+
+from lune import pyinterop
 
 ROOT = Path(__file__).resolve().parent.parent
 
@@ -101,7 +106,7 @@ class DriverModuleTests(unittest.TestCase):
         type-check and produce the number it promises.
         """
         html = (ROOT / "playground" / "index.html").read_text(encoding="utf-8")
-        preset = re.search(r"\n  modules: \{(.*?)\n  \},\n\};", html, re.S)
+        preset = re.search(r"\n  modules: \{(.*?)\n  \},\n", html, re.S)
         self.assertIsNotNone(preset, "the `modules` preset is gone from playground/index.html")
         codes = re.findall(r"code: `(.*?)`", preset.group(1), re.S)
         self.assertEqual(len(codes), 2, "expected an entry and one module")
@@ -112,12 +117,63 @@ class DriverModuleTests(unittest.TestCase):
         self.assertEqual(out.strip(), "12.0")
 
 
+class DriverPythonImportTests(unittest.TestCase):
+    """`lune_python_imports` tells the page which Pyodide packages to load."""
+
+    def setUp(self) -> None:
+        self.tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.tmp.cleanup)
+        self.driver = load_driver(Path(self.tmp.name))
+
+    def imports(self, *sources: str) -> str:
+        return self.driver["lune_python_imports"](json.dumps(list(sources)))
+
+    def test_one_line_per_top_level_package_across_files(self) -> None:
+        entry = "import python.numpy as np\nimport python.sklearn.linear_model as lm\nimport geometry\n"
+        module = "module geometry\n\nimport python.numpy\nimport python.math\n"
+        self.assertEqual(self.imports(entry, module), "import numpy\nimport sklearn\nimport math\n")
+
+    def test_java_imports_and_lune_modules_are_not_packages(self) -> None:
+        self.assertEqual(self.imports("import java.time.LocalDate\nimport geometry\n"), "")
+
+    def test_a_source_that_does_not_parse_contributes_nothing(self) -> None:
+        # A REPL expression or a half-typed program; checking it reports why.
+        self.assertEqual(self.imports("let x = (1", "import python.numpy\n"), "import numpy\n")
+
+    def test_the_playground_hint_does_not_suggest_pip(self) -> None:
+        with mock.patch.object(sys, "platform", "emscripten"):
+            hint = pyinterop.install_hint("numpy")
+        self.assertIn("Pyodide", hint)
+        self.assertNotIn("pip", hint)
+
+    @unittest.skipUnless(importlib.util.find_spec("numpy"), "NumPy is not installed")
+    def test_the_numpy_sample_on_the_page_actually_works(self) -> None:
+        html = (ROOT / "playground" / "index.html").read_text(encoding="utf-8")
+        preset = re.search(r"\n  numpy: \{(.*?)\n  \},\n", html, re.S)
+        self.assertIsNotNone(preset, "the `numpy` preset is gone from playground/index.html")
+        code = re.search(r"code: `(.*?)`", preset.group(1), re.S).group(1)
+        binding = re.search(r'binding: "(\w+)"', preset.group(1)).group(1)
+        self.assertEqual(self.imports(code), "import numpy\n")
+        out = self.driver["lune_run"](code, binding, False, "en", "[]")
+        self.assertTrue(out.startswith("[") and "error" not in out, out)
+
+
 class DriverWiringTests(unittest.TestCase):
     def test_the_page_passes_every_file_to_the_driver(self) -> None:
         """Run and check mean the whole program, not the tab on screen."""
         html = (ROOT / "playground" / "index.html").read_text(encoding="utf-8")
         self.assertIn('call("lune_run", entryCode(), $("binding").value, $("trace").checked, $("lang").value, modulesJson())', html)
         self.assertIn('call("lune_check", entryCode(), $("lang").value, modulesJson())', html)
+
+    def test_packages_are_loaded_before_the_program_is_checked(self) -> None:
+        """Without this, `import python.numpy` is MOD0004 in the Playground."""
+        html = (ROOT / "playground" / "index.html").read_text(encoding="utf-8")
+        for call in ('call("lune_run"', 'call("lune_check"', 'call("lune_repl_submit"'):
+            with self.subTest(call=call):
+                before = html[: html.index(call)]
+                tail = before[before.rindex("{") :]
+                self.assertIn("await ensurePythonPackages(call, ", tail)
+        self.assertIn("py.loadPackagesFromImports(", html)
 
 
 if __name__ == "__main__":

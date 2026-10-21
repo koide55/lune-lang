@@ -122,6 +122,7 @@
         <option value="typo">typo と自動修正(TYP0001)</option>
         <option value="stream">無限ストリーム(トレースで観察)</option>
         <option value="modules">import で分ける(2ファイル)</option>
+        <option value="numpy">NumPy を使う(Python 連携)</option>
       </select>
       <label>評価する束縛:</label>
       <input type="text" id="binding" value="main">
@@ -229,6 +230,18 @@ def area(width: Double, height: Double): Double =
       },
     ],
   },
+  numpy: {
+    binding: "normalized",
+    code: `module main
+
+import python.numpy as np
+
+let scores = np.array([72.0, 85.0, 90.0, 64.0, 78.0])
+let mean = asDouble(np.mean(scores))
+let best = asInt(np.argmax(scores))
+let normalized = (scores - np.mean(scores)) / np.std(scores)
+`,
+  },
 };
 
 const LUNE_FILES = ["__init__.py","cli.py","diagnostics.py","evaluator.py",
@@ -249,6 +262,7 @@ from lune.formatter import format_source
 from lune.fixer import apply_fixes
 from lune.repl import ReplSession, wants_more
 from lune.parser import parse_source
+from lune.typechecker import is_python_import, python_module_name
 from lune import nodes as ast
 from lune import __version__ as LUNE_VERSION
 
@@ -273,6 +287,30 @@ def lune_bindings(source):
         elif isinstance(decl, ast.VarDecl):
             names.append(decl.name)
     return json.dumps(names)
+
+def lune_python_imports(sources):
+    """Python source naming the packages that \`import python.X\` needs, one
+    \`import X\` line per top-level package across sources (a JSON list).
+
+    Pyodide ships NumPy, SciPy, pandas, scikit-learn and others as packages
+    that have to be loaded before Python's own import can find them. The page
+    hands this text to pyodide.loadPackagesFromImports, which knows that
+    \`sklearn\` is the package scikit-learn and skips what the standard library
+    already has (\`math\`, \`random\`), so nothing here keeps a package list.
+    A source that does not parse contributes nothing; checking it reports why.
+    """
+    names = []
+    for source in json.loads(sources):
+        try:
+            module = parse_source(source, "main.lune")
+        except Exception:
+            continue
+        for decl in module.imports:
+            if is_python_import(decl.path):
+                name = python_module_name(decl.path).split(".")[0]
+                if name not in names:
+                    names.append(name)
+    return "".join("import %s\\n" % name for name in names)
 
 # Files written for the last run, so that a module the user deleted really
 # disappears. A stale /app/math.lune would go on resolving \`import math\`, and
@@ -429,6 +467,36 @@ let py = null;
 let cm = null;
 
 function setStatus(msg) { status.textContent = msg; }
+
+// --- Python packages for `import python.X` -----------------------------------
+// Pyodide's packages (NumPy, SciPy, pandas, scikit-learn …) are downloaded on
+// demand, so they have to be loaded before a program that imports them is
+// checked: otherwise the import is reported as MOD0004. The driver finds the
+// imports with the real parser; Pyodide maps them to packages.
+
+const requestedImports = new Set();
+
+async function ensurePythonPackages(call, sources) {
+  const lines = call("lune_python_imports", JSON.stringify(sources))
+    .split("\n").filter((line) => line && !requestedImports.has(line));
+  if (!lines.length) return;
+  lines.forEach((line) => requestedImports.add(line));
+  setStatus(`Python パッケージを読み込み中: ${lines.map((line) => line.slice("import ".length)).join(", ")}`);
+  try {
+    await py.loadPackagesFromImports(lines.join("\n"));
+    // A package installed after start-up is new to the import system's caches.
+    py.runPython("import importlib; importlib.invalidate_caches()");
+  } catch (e) {
+    // Offline, say: MOD0004 explains the missing module, and the next run retries.
+    lines.forEach((line) => requestedImports.delete(line));
+    console.warn(e);
+  }
+}
+
+// Every file of the program: the entry and the module tabs.
+function programSources() {
+  return [entryCode(), ...JSON.parse(modulesJson()).map((module) => module.c)];
+}
 
 // --- editor (CodeMirror with a plain-textarea fallback) ---------------------
 
@@ -627,7 +695,8 @@ function replReset(call, lang) {
   $("repl-line").focus();
 }
 
-function replSubmit(call, lang, source) {
+async function replSubmit(call, lang, source) {
+  await ensurePythonPackages(call, [source, ...programSources()]);
   const r = JSON.parse(call("lune_repl_submit", source, lang, entryCode(), modulesJson()));
   if (r.text) replAppend(colorize(r.text));
   if (r.kind === "quit") {
@@ -660,7 +729,7 @@ function replOnEnter(call, lang) {
   replPrompt();
   repl.history.push(source);
   repl.cursor = repl.history.length;
-  replSubmit(call, lang, source);
+  return replSubmit(call, lang, source);
 }
 
 function replOnHistory(dir) {
@@ -949,11 +1018,13 @@ async function main() {
   // Run and check always mean the whole program: main.lune is the entry even
   // when a module tab is the one on screen.
   $("btn-run").onclick = () => timed("実行", async () => {
+    await ensurePythonPackages(call, programSources());
     const text = call("lune_run", entryCode(), $("binding").value, $("trace").checked, $("lang").value, modulesJson());
     render(text);
     markErrorLineFrom(text);
   });
   $("btn-check").onclick = () => timed("型チェック", async () => {
+    await ensurePythonPackages(call, programSources());
     const text = call("lune_check", entryCode(), $("lang").value, modulesJson());
     render(text);
     markErrorLineFrom(text);
@@ -1013,7 +1084,7 @@ async function main() {
     const source = getCode().replace(/\n+$/, "");
     if (!source.trim()) return;
     replEcho("lune>", "(エディタの内容)");
-    replSubmit(call, lang(), source);
+    await replSubmit(call, lang(), source);
   });
   // the session was built with the language selected at load time
   $("lang").addEventListener("change", () => replReset(call, lang()));
