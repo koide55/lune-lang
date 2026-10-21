@@ -389,7 +389,16 @@ def register_python_types(env: TypeEnv) -> None:
 
 
 def python_convertible(typ: ValueType) -> bool:
-    """Whether a value of `typ` can be handed to Python (spec section 5.1)."""
+    """Whether a value of `typ` can be handed to Python (spec section 5.1).
+
+    A function can, when Python is able to call it (section 5.5): every
+    parameter takes what Python passes, a `Py` (or `Any`, which an
+    unannotated lambda outside a Python call falls back to), and the result
+    can be handed back.
+    """
+    if isinstance(typ, FunctionType):
+        typ = flatten_function_type(typ)
+        return all(param in {PY, ANY} for param in typ.params) and python_convertible(typ.result)
     if not isinstance(typ, Type):
         return False
     if typ in {INT, FLOAT, STRING, BOOL, UNIT, NULL, PY, ANY, BOTTOM} or is_type_var(typ):
@@ -408,8 +417,38 @@ def require_python_convertible(typ: ValueType, span: SourceSpan | None) -> None:
             "TYP0003",
             span,
             t("label.py-unconvertible"),
-            [t("hint.py-convertible")],
+            python_convertible_hints(typ),
         )
+
+
+def python_convertible_hints(typ: ValueType) -> list[str]:
+    if not isinstance(typ, FunctionType):
+        return [t("hint.py-convertible")]
+    typ = flatten_function_type(typ)
+    if any(param not in {PY, ANY} for param in typ.params):
+        return [t("hint.py-callback")]
+    return [t("hint.py-callback-result", type=repr(typ.result)), t("hint.py-convertible")]
+
+
+def infer_python_argument(expr: ast.Expr, env: TypeEnv, span: SourceSpan | None = None) -> ValueType:
+    """Type an argument handed to Python, checking that it can be.
+
+    A lambda written right there is called by Python, which passes Py values,
+    so its unannotated parameters are `Py` rather than the `Any` (and TYP0010
+    warning) a lambda gets anywhere else: `py.sorted(xs, key = fn x -> ...)`.
+    """
+    if isinstance(expr, ast.LambdaExpr):
+        local = env.child()
+        params: list[ValueType] = []
+        for param in expr.params:
+            param_type = type_from_ast(param.type) if param.type is not None else PY
+            local.define_value(param.name, param_type)
+            params.append(param_type)
+        value_type: ValueType = FunctionType(tuple(params), infer_expr(expr.body, local))
+    else:
+        value_type = infer_expr(expr, env)
+    require_python_convertible(value_type, getattr(expr, "span", None) or span)
+    return value_type
 
 
 _PY_CONVERTERS = {INT: "asInt", FLOAT: "asDouble", STRING: "asString", BOOL: "asBool"}
@@ -935,7 +974,7 @@ def infer_call(callee_type: ValueType, args: list[ast.Argument], env: TypeEnv, s
         # Any number of arguments, and `name = value` is a Python keyword
         # argument, so TYP0012 does not apply (PYTHON_INTEROP_SPEC.md 5.2).
         for arg in args:
-            require_python_convertible(infer_expr(arg.value, env), getattr(arg.value, "span", None) or arg.span or span)
+            infer_python_argument(arg.value, env, arg.span or span)
         return PY
     if not isinstance(callee_type, FunctionType):
         raise LuneTypeError(t("typ.not-callable", type=repr(callee_type)), "TYP0004", span, t("label.not-callable"))
