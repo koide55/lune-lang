@@ -1,0 +1,7 @@
+error[MOD0004]: Python モジュールが見つかりません: torch
+  --> missing.lune:2:1
+  |
+2 | import python.torch as torch
+  | ^^^^^^ lune を動かしている Python にはインストールされていない
+   = hint: `python3 -m pip install torch` でインストールできます（lune を動かしている Python です）
+   = help: 詳しくは `lune explain MOD0004 --lang ja` を実行してください

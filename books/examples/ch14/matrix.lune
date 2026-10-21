@@ -1,0 +1,11 @@
+module matrix
+import python.numpy as np
+
+# 名前付き引数はキーワード引数に、[] は Python の添字になる。
+let m = np.arange(6).reshape(2, 3)
+
+let columnSums = np.sum(m, axis = 0)
+
+let corner = asInt(m[1, 2])
+
+let firstColumn = m[pySlice(null, null), 0]

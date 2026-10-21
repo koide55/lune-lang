@@ -1,0 +1,7 @@
+error[TYP0003]: let annotation: expected Int, got Py
+  --> border.lune:7:18
+  |
+7 | let total: Int = np.sum(scores)
+  |                  ^^ this expression has type Py
+   = hint: use `asInt(...)` to convert a Python value to Int
+   = help: run `lune explain TYP0003` for a detailed explanation

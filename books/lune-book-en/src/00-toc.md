@@ -19,11 +19,14 @@
 | Chapter 11 | [Talking to the Compiler](11-talking-to-the-compiler.md) |
 | Chapter 12 | [The REPL, Formatting and Checking](12-tools.md) |
 | Chapter 13 | [Building a Program — Case Studies](13-case-studies.md) |
+| **Part IV: Reaching Python** |  |
+| Chapter 14 | [Borrowing Python's Power](14-python.md) |
 |  | [Appendix A: Language Reference Manual](appendix-a-reference.md) |
 |  | [Appendix B: Standard Library Reference](appendix-b-stdlib.md) |
 |  | [Appendix C: The Diagnostic Codes](appendix-c-diagnostics.md) |
 |  | [Appendix D: CLI and REPL Command Reference](appendix-d-cli.md) |
 |  | [Appendix E: The Design of Lune, and What Comes Next](appendix-e-design.md) |
+|  | [Index](zz-index.md) |
 
 <div class="toc-note">
 

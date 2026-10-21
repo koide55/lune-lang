@@ -26,6 +26,10 @@
 - [The REPL, Formatting and Checking](12-tools.md)
 - [Building a Program — Case Studies](13-case-studies.md)
 
+# Part IV: Reaching Python
+
+- [Borrowing Python's Power](14-python.md)
+
 ---
 
 [Appendix A: Language Reference Manual](appendix-a-reference.md)

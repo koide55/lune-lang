@@ -1,0 +1,4 @@
+error[RUN0007]: Python で例外が発生しました: AttributeError: module 'numpy' has no attribute 'summ'
+   = hint: もしかして `sum` ですか?
+   = hint: Python のトレースバック全体は `lune --py-traceback` で表示できます
+   = help: 詳しくは `lune explain RUN0007 --lang ja` を実行してください

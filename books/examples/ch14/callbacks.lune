@@ -1,0 +1,18 @@
+module callbacks
+import python.builtins as py
+import python.functools as ft
+import python.numpy as np
+
+def lastDigit(x: Py): Int =
+    asInt(x) % 10
+
+let xs = [31, 12, 23, 44]
+
+# ラムダの引数は Py。Python が呼ぶので、注釈は要らない。
+let byLast = map(asList(py.sorted(xs, key = fn x -> asInt(x) % 10)), asInt)
+
+let byLastDesc = map(asList(py.sorted(xs, key = lastDigit, reverse = true)), asInt)
+
+let total = asInt(ft.reduce(fn acc x -> asInt(acc) + asInt(x), xs, 0))
+
+let doubled = np.vectorize(fn x -> asDouble(x) * 2.0)(np.arange(4))

@@ -1,0 +1,11 @@
+module shuffle
+import python.random
+
+# A Lune list is copied into a Python list each time it is passed. The copy is what gets shuffled.
+let xs = [1, 2, 3, 4, 5]
+
+let result = random.shuffle(xs)
+
+let after = (result, xs)
+
+let picked = map(asList(random.Random(7).sample(xs, 3)), asInt)
