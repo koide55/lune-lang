@@ -42,6 +42,11 @@ def visible_value_names(env) -> list[str]:
 
 
 class LuneTypeError(DiagnosticError):
+    # Set on a TYP0001 raised for a name reference, so a caller (the REPL's
+    # deferred-binding logic) can tell *which* name is missing without
+    # parsing the message text.
+    undefined_name: str | None = None
+
     def __init__(
         self,
         message: str,
@@ -546,13 +551,15 @@ def infer_expr(expr: ast.Expr, env: TypeEnv, expected: ValueType | None = None) 
         try:
             value_type = env.lookup_value(expr.name)
         except LuneTypeError as exc:
-            raise LuneTypeError(
+            error = LuneTypeError(
                 t("typ.undefined-name", name=expr.name),
                 "TYP0001",
                 expr.span,
                 t("label.name-not-defined"),
                 *name_suggestion(expr.name, visible_value_names(env), expr.span),
-            ) from exc
+            )
+            error.undefined_name = expr.name
+            raise error from exc
         if expected is not None and env.has_constructor(expr.name):
             # A bare nullary constructor (`None`, `Nil`) leaves its type
             # parameters free; the expected type fixes them.

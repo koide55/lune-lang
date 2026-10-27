@@ -190,6 +190,38 @@ MESSAGES: dict[str, tuple[str, str]] = {
     "label.name-not-defined": ("name is not defined", "この名前は定義されていない"),
     "hint.did-you-mean": ("did you mean `{name}`?", "もしかして `{name}` ですか?"),
     "fix.replace-with": ("replace with `{name}`", "`{name}` に置き換える"),
+    # --- REPL: forward references in lazy top-level bindings ---
+    "repl.deferred": (
+        "`{missing}` is not defined yet; `{name}` will be checked once it is",
+        "`{missing}` はまだ定義されていません。定義されたときに `{name}` を検査します",
+    ),
+    "repl.resolved": ("`{name}` is now checked: {type}", "`{name}` の検査が完了しました: {type}"),
+    "hint.waiting-for": (
+        "`{name}` is waiting for `{missing}` to be defined",
+        "`{name}` は `{missing}` の定義を待っています",
+    ),
+    "hint.pending-failed": (
+        "`{name}` was waiting for `{missing}` and does not type-check now that it is defined",
+        "`{name}` は `{missing}` を待っていましたが、定義されたあとの型検査に失敗しました",
+    ),
+    "hint.defined-too-late-let": (
+        "`{name}` was waiting for `{missing}`, but `{missing}` is a `let`; as in a file, "
+        "only a `def` with a return type can be used above its definition",
+        "`{name}` は `{missing}` を待っていましたが、`{missing}` は `let` です。"
+        "ファイルと同じく、定義より前で使えるのは戻り値型を書いた `def` だけです",
+    ),
+    "hint.defined-too-late-var": (
+        "`{name}` was waiting for `{missing}`, but `{missing}` is a `var`; as in a file, "
+        "only a `def` with a return type can be used above its definition",
+        "`{name}` は `{missing}` を待っていましたが、`{missing}` は `var` です。"
+        "ファイルと同じく、定義より前で使えるのは戻り値型を書いた `def` だけです",
+    ),
+    "hint.defined-too-late-def": (
+        "`{name}` was waiting for `{missing}`, but `{missing}` has no return type; as in a file, "
+        "only a `def` with a return type can be used above its definition",
+        "`{name}` は `{missing}` を待っていましたが、`{missing}` には戻り値型がありません。"
+        "ファイルと同じく、定義より前で使えるのは戻り値型を書いた `def` だけです",
+    ),
     # --- typechecker: types ---
     "typ.expected-got": ("expected {expected}, got {actual}", "{expected} が必要ですが、{actual} が見つかりました"),
     "typ.context-expected-got": (
