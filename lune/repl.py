@@ -39,7 +39,7 @@ from .module_loader import (
 )
 from .parser import parse_source
 from .tokens import LuneSyntaxError
-from .typechecker import TypeEnv, check_module_into, initial_type_env
+from .typechecker import LuneTypeError, TypeEnv, check_module_into, initial_type_env
 
 
 REPL_VALUE = "__repl_value"
@@ -68,6 +68,26 @@ class ReplResult:
     warnings: tuple = ()
 
 
+@dataclass
+class PendingBinding:
+    """A lazy top-level binding whose type check is waiting on another name.
+
+    Lune's top-level bindings are lazy, so `let main = greet("world")` is a
+    fine thing to type before `greet` exists: nothing runs until `main` is
+    forced, and a file would have accepted the same two declarations in
+    either order. The REPL therefore treats its inputs as one module built
+    up over time. The binding is evaluated into the environment (as a
+    thunk, or a closure for `def`) right away; its *type check* is replayed
+    once the missing name arrives. Until then the name has no type, and
+    using it reports the original TYP0001 for the missing name.
+    """
+
+    name: str
+    module: ast.ModuleFile
+    missing: str
+    diagnostic: Diagnostic
+
+
 class ReplSession:
     def __init__(self, module_paths: Iterable[str | Path] = (), source_map: SourceMap | None = None):
         self.type_env = initial_type_env()
@@ -81,6 +101,7 @@ class ReplSession:
         # render without the offending line.
         self.source_map = source_map
         self._loaded_modules: set[Path] = set()
+        self._pending: dict[str, PendingBinding] = {}
 
     def submit(self, source: str, filename: str = "<repl>") -> ReplResult:
         source = source.strip("\n")
@@ -140,6 +161,7 @@ class ReplSession:
     def _run(self, module: ast.ModuleFile, is_expr: bool) -> ReplResult:
         type_snapshot = _clone_type_env(self.type_env)
         warning_start = len(self.type_env.warnings)
+        declared = _declared_names(module)
         try:
             self._load_imports(module)
             # Imports are resolved above, so the name must not also be bound to
@@ -147,11 +169,19 @@ class ReplSession:
             # is how module_loader.check_file draws the same line).
             define_external_imports(module, self.type_env)
             check_module_into(module, self.type_env, process_imports=False)
+        except LuneTypeError as exc:
+            self.type_env = type_snapshot
+            if not is_expr and self._can_defer(module, exc):
+                return self._defer(module, exc)
+            raise self._with_pending_context(exc) from None
         except Exception:
             self.type_env = type_snapshot
             raise
         warnings = tuple(self.type_env.warnings[warning_start:])
         del self.type_env.warnings[warning_start:]
+        # A redefinition supersedes whatever was still waiting under that name.
+        for name in declared:
+            self._pending.pop(name, None)
 
         trace_lines: list[str] = []
         if self.trace_enabled:
@@ -169,7 +199,84 @@ class ReplSession:
         if is_expr:
             message = "\n".join([*trace_lines, f"{rendered} : {typ!r}"])
             return ReplResult("value", message, value, repr(typ), warnings)
-        return ReplResult("ok", "\n".join([*trace_lines, "ok"]), warnings=warnings)
+        notes, resolution_errors = self._resolve_pending()
+        message = "\n".join([*trace_lines, "ok", *(f"   = note: {note}" for note in notes)])
+        return ReplResult("ok", message, warnings=(*warnings, *resolution_errors))
+
+    # --- forward references -------------------------------------------------
+
+    def _can_defer(self, module: ast.ModuleFile, exc: LuneTypeError) -> bool:
+        """Whether a TYP0001 from `module` may wait instead of being an error.
+
+        Only when every declaration is lazy at the top level — a plain
+        `let name = ...` (a thunk) or a `def` (a closure) — and the missing
+        name is one the session does not know yet. `strict let`, `var` and
+        pattern `let`s evaluate on the spot, so they cannot wait; a name the
+        session *does* know is a real type error, not a forward reference.
+        """
+        missing = exc.undefined_name
+        if missing is None or not module.declarations:
+            return False
+        if missing in self.type_env.values or missing in _declared_names(module):
+            return False
+        return all(_is_lazy_top_level(decl) for decl in module.declarations)
+
+    def _defer(self, module: ast.ModuleFile, exc: LuneTypeError) -> ReplResult:
+        assert exc.undefined_name is not None
+        notes = []
+        for name in _declared_names(module):
+            self._pending[name] = PendingBinding(name, module, exc.undefined_name, exc.diagnostic)
+            notes.append(t("repl.deferred", missing=exc.undefined_name, name=name))
+        # The binding itself is lazy, so evaluating the declaration binds a
+        # thunk (or closure) and runs nothing.
+        eval_module_into(module, self.eval_env)
+        return ReplResult("ok", "\n".join(["ok", *(f"   = note: {note}" for note in notes)]))
+
+    def _with_pending_context(self, exc: LuneTypeError) -> DiagnosticError:
+        """Using a pending name reports *why* it is unusable: the original
+        diagnostic for the name it is waiting on, pointing at the input that
+        introduced it."""
+        pending = self._pending.get(exc.undefined_name or "")
+        if pending is None:
+            return exc
+        hint = t("hint.waiting-for", name=pending.name, missing=pending.missing)
+        return DiagnosticError(replace(pending.diagnostic, hints=[*pending.diagnostic.hints, hint]))
+
+    def _resolve_pending(self) -> tuple[list[str], list[Diagnostic]]:
+        """Replay the type check of every binding whose missing name now exists.
+
+        Runs to a fixpoint, because resolving one binding can unblock another
+        (`a` waits on `b`, which waits on the name just defined). A binding
+        that fails for some other reason once its dependency exists stays
+        pending with that error, so using it reports the real problem.
+        """
+        notes: list[str] = []
+        errors: list[Diagnostic] = []
+        progress = True
+        while progress:
+            progress = False
+            for name, pending in list(self._pending.items()):
+                if pending.missing not in self.type_env.values:
+                    continue
+                snapshot = _clone_type_env(self.type_env)
+                warning_start = len(self.type_env.warnings)
+                try:
+                    check_module_into(pending.module, self.type_env, process_imports=False)
+                except LuneTypeError as exc:
+                    self.type_env = snapshot
+                    if exc.undefined_name is not None and exc.undefined_name not in self.type_env.values:
+                        # Still a forward reference, to the next missing name.
+                        pending.missing = exc.undefined_name
+                        pending.diagnostic = exc.diagnostic
+                    else:
+                        pending.diagnostic = exc.diagnostic
+                        errors.append(exc.diagnostic)
+                    continue
+                del self.type_env.warnings[warning_start:]
+                del self._pending[name]
+                notes.append(t("repl.resolved", name=name, type=repr(self.type_env.lookup_value(name))))
+                progress = True
+        return notes, errors
 
     def run_command(self, command: str) -> ReplResult:
         parts = command.split()
@@ -184,10 +291,15 @@ class ReplSession:
         if name == ":env":
             public = sorted(key for key in self.type_env.values if not key.startswith("__"))
             lines = [f"{key} : {self.type_env.values[key]!r}" for key in public]
+            lines.extend(
+                f"{key} : ? (waiting for {self._pending[key].missing})" for key in sorted(self._pending)
+            )
             return ReplResult("info", "\n".join(lines))
         if name == ":type":
             if len(parts) != 2:
                 return ReplResult("error", "usage: :type NAME")
+            if parts[1] in self._pending:
+                return ReplResult("info", f"{parts[1]} : ? (waiting for {self._pending[parts[1]].missing})")
             typ = self.type_env.lookup_value(parts[1])
             return ReplResult("info", f"{parts[1]} : {typ!r}")
         if name == ":thunks":
@@ -286,6 +398,24 @@ def repl_main(stdin: TextIO, stdout: TextIO, stderr: TextIO, module_paths: Itera
                 return 0
         except Exception as exc:
             stderr.write(format_exception(exc, source_map, explain_hint=True) + "\n")
+
+
+def _declared_names(module: ast.ModuleFile) -> list[str]:
+    """Top-level names a module input binds, for the deferral bookkeeping."""
+    names: list[str] = []
+    for decl in module.declarations:
+        if isinstance(decl, ast.LetDecl) and isinstance(decl.pattern, ast.NamePattern):
+            names.append(decl.pattern.name)
+        elif isinstance(decl, ast.FunctionDecl | ast.VarDecl):
+            names.append(decl.name)
+    return names
+
+
+def _is_lazy_top_level(decl: ast.Decl) -> bool:
+    """A declaration the evaluator binds without running anything."""
+    if isinstance(decl, ast.LetDecl):
+        return isinstance(decl.pattern, ast.NamePattern) and not decl.is_strict
+    return isinstance(decl, ast.FunctionDecl)
 
 
 def _describe_binding(name: str, value: object) -> str:

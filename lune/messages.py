@@ -190,6 +190,16 @@ MESSAGES: dict[str, tuple[str, str]] = {
     "label.name-not-defined": ("name is not defined", "この名前は定義されていない"),
     "hint.did-you-mean": ("did you mean `{name}`?", "もしかして `{name}` ですか?"),
     "fix.replace-with": ("replace with `{name}`", "`{name}` に置き換える"),
+    # --- REPL: forward references in lazy top-level bindings ---
+    "repl.deferred": (
+        "`{missing}` is not defined yet; `{name}` will be checked once it is",
+        "`{missing}` はまだ定義されていません。定義されたときに `{name}` を検査します",
+    ),
+    "repl.resolved": ("`{name}` is now checked: {type}", "`{name}` の検査が完了しました: {type}"),
+    "hint.waiting-for": (
+        "`{name}` is waiting for `{missing}` to be defined",
+        "`{name}` は `{missing}` の定義を待っています",
+    ),
     # --- typechecker: types ---
     "typ.expected-got": ("expected {expected}, got {actual}", "{expected} が必要ですが、{actual} が見つかりました"),
     "typ.context-expected-got": (
