@@ -241,23 +241,92 @@ class ReplForwardReferenceTests(unittest.TestCase):
 
     def test_chain_of_forward_references_resolves_in_one_step(self) -> None:
         session = ReplSession()
-        session.submit("let a = b + 1")
-        session.submit("let b = c * 2")
-        self.assertEqual(session.submit(":type a").message, "a : ? (waiting for b)")
-        result = session.submit("let c = 20")
-        self.assertIn("`b` is now checked: Int", result.message)
+        session.submit("let a = f() + 1")
+        session.submit("def f(): Int =\n    g() * 2\n")
+        self.assertEqual(session.submit(":type a").message, "a : ? (waiting for f)")
+        result = session.submit("def g(): Int =\n    20\n")
+        self.assertIn("`f` is now checked: () -> Int", result.message)
         self.assertIn("`a` is now checked: Int", result.message)
         self.assertEqual(session.submit("a").message, "41 : Int")
 
     def test_a_later_definition_can_still_make_the_binding_ill_typed(self) -> None:
         session = ReplSession()
-        session.submit("let n = size + 1")
-        result = session.submit('let size = "big"')
+        session.submit("let n = size() + 1")
+        result = session.submit('def size(): String =\n    "big"\n')
         self.assertEqual(result.kind, "ok")
         self.assertEqual([w.code for w in result.warnings], ["TYP0003"])
+        self.assertIn("`n` was waiting for `size`", " ".join(result.warnings[0].hints))
+        self.assertEqual(session.submit(":type n").message, "n : ? (failed: TYP0003)")
         with self.assertRaises(DiagnosticError) as caught:
             session.submit("n")
         self.assertEqual(caught.exception.diagnostic.code, "TYP0003")
+        # reported once, not again on every later input
+        self.assertEqual(session.submit("let unrelated = 1").warnings, ())
+        # defining the name again retries the binding
+        result = session.submit("def size(): Int =\n    41\n")
+        self.assertIn("`n` is now checked: Int", result.message)
+        self.assertEqual(session.submit("n").message, "42 : Int")
+
+    def test_only_what_a_file_could_use_early_resolves_a_binding(self) -> None:
+        # In a file `let n = size + 1` above `let size = 41` is TYP0001: only a
+        # `def` with a return type (and a constructor) is predeclared. The REPL
+        # gives the same answer once it learns what `size` is.
+        cases = [
+            ("let size = 41", "is a `let`"),
+            ("var size = 41", "is a `var`"),
+            ("def size() =\n    41\n", "has no return type"),
+        ]
+        for source, reason in cases:
+            with self.subTest(source=source):
+                session = ReplSession()
+                session.submit("let n = size + 1" if "def" not in source else "let n = size() + 1", "<repl:1>")
+                result = session.submit(source, "<repl:2>")
+                self.assertEqual(result.kind, "ok")
+                self.assertEqual([w.code for w in result.warnings], ["TYP0001"])
+                diagnostic = result.warnings[0]
+                self.assertEqual(diagnostic.primary.span.filename, "<repl:1>")
+                self.assertIn(reason, " ".join(diagnostic.hints))
+                self.assertEqual(session.submit(":type n").message, "n : ? (failed: TYP0001)")
+                with self.assertRaises(DiagnosticError) as caught:
+                    session.submit("n")
+                self.assertEqual(caught.exception.diagnostic.code, "TYP0001")
+
+    def test_a_let_declared_after_the_binding_stays_hidden_from_it(self) -> None:
+        # `b` exists by the time `f` arrives, but a file would read
+        # `let a = f() + b` above `let b = 1` and reject it.
+        session = ReplSession()
+        session.submit("let a = f() + b")
+        session.submit("let b = 1")
+        result = session.submit("def f(): Int =\n    1\n")
+        self.assertEqual([w.code for w in result.warnings], ["TYP0001"])
+        self.assertIn("`b` is a `let`", " ".join(result.warnings[0].hints))
+
+    def test_mutual_recursion_across_inputs(self) -> None:
+        session = ReplSession()
+        session.submit("let main = isEven(10)")
+        session.submit("def isEven(n: Int): Bool =\n    if n == 0 then true else isOdd(n - 1)\n")
+        self.assertEqual(session.submit(":type isEven").message, "isEven : ? (waiting for isOdd)")
+        result = session.submit("def isOdd(n: Int): Bool =\n    if n == 0 then false else isEven(n - 1)\n")
+        self.assertIn("`isEven` is now checked: Int -> Bool", result.message)
+        self.assertIn("`main` is now checked: Bool", result.message)
+        self.assertEqual(session.submit("main").message, "true : Bool")
+
+    def test_mutual_recursion_that_still_waits_on_a_third_name(self) -> None:
+        session = ReplSession()
+        session.submit("def f(n: Int): Int =\n    g(n)\n")
+        result = session.submit("def g(n: Int): Int =\n    f(n) + h(n)\n")
+        self.assertIn("`h` is not defined yet; `g` will be checked once it is", result.message)
+        result = session.submit("def h(n: Int): Int =\n    n\n")
+        self.assertIn("`g` is now checked", result.message)
+        self.assertIn("`f` is now checked", result.message)
+
+    def test_var_stays_assignable_after_a_type_error(self) -> None:
+        session = ReplSession()
+        session.submit("var v = 1")
+        with self.assertRaises(LuneTypeError):
+            session.submit("nosuch")
+        session.submit("v = 2")
+        self.assertEqual(session.submit("v").message, "2 : Int")
 
     def test_strict_and_pattern_bindings_do_not_wait(self) -> None:
         session = ReplSession()
