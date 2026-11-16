@@ -38,6 +38,8 @@ IDENT       = IDENT_START IDENT_PART*
 
 `_` 単独はワイルドカードパターン、`_name` は識別子です。
 
+`.` と `?.` の直後では、キーワードも名前として読みます（`re.match`、`x.type`）。ドットの後ろから構文が始まることはないので、そこでは予約する意味がありません（第14章）。
+
 ### リテラル
 
 | 種類 | 例 | 型 |
@@ -207,6 +209,8 @@ tuple      ::= "(" expr "," expr ("," expr)* ")"
 （`User(name = "Ada", age = 36)`）。関数と ADT のコンストラクタは位置引数で呼びます
 （名前付きにすると `TYP0012`）。
 
+呼ぶ相手が `Py` のときは例外で、`名前 = 値` は Python のキーワード引数になります。添字 `e[k, ...]` も、受け手が `Py` のときにだけ使えます（第14章）。
+
 ### パターン
 
 ```ebnf
@@ -228,10 +232,10 @@ pattern ::= "_"                       # ワイルドカード
 ### 基本型
 
 ```text
-Bool  Int  Double  String  Unit  Any  Nothing  Null
+Bool  Int  Double  String  Unit  Any  Nothing  Null  Py
 ```
 
-`Int` は任意精度です。`Nothing` は値を持たない型（`crash()` の戻り値型）。
+`Int` は任意精度です。`Nothing` は値を持たない型（`crash()` の戻り値型）。`Py` は Python のオブジェクト（`import python.X` とその呼び出し結果）で、Lune の型とは `asInt` などの変換関数を通してしか行き来しません（第14章）。
 
 **これが基本型の全部です。** 他の言語にありそうな `Long` `Float` `Char` は v0.1 に
 ありません。整数は `Int` ひとつ（任意精度なので `Long` を分ける理由がない）、小数は

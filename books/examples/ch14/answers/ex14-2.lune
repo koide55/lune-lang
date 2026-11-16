@@ -1,0 +1,7 @@
+module ex14_2
+import python.numpy as np
+
+# 演習 14-2: 配列の比較は配列なので、np.all で1つの真偽値にしてから Bool に変換する。
+let scores = np.array([72.0, 85.0, 90.0])
+
+let verdict = if asBool(np.all(scores > 70.0)) then "pass" else "fail"

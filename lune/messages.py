@@ -114,13 +114,17 @@ MESSAGES: dict[str, tuple[str, str]] = {
         "a Lune value of type {type} cannot be passed to Python",
         "{type} 型の Lune の値は Python に渡せません",
     ),
-    "run.py-pass-function": (
-        "Lune functions cannot be passed to Python yet",
-        "Lune の関数はまだ Python に渡せません",
+    "hint.py-callback": (
+        "Python calls a function with Py values: declare its parameters as Py, or leave a lambda's unannotated, and convert inside, e.g. `fn x -> asInt(x) + 1`",
+        "Python は関数を Py の値で呼びます。引数は Py と宣言するか、ラムダなら注釈を省き、中で変換してください（例: `fn x -> asInt(x) + 1`）",
+    ),
+    "hint.py-callback-result": (
+        "the function returns {type}, which Python cannot receive",
+        "この関数は {type} を返しますが、Python はそれを受け取れません",
     ),
     "hint.py-convertible": (
-        "Python accepts Int, Double, String, Bool, Unit, null, and Lists, Tuples and Py values built from them",
-        "Python に渡せるのは Int・Double・String・Bool・Unit・null と、それらからなる List・Tuple、そして Py の値です",
+        "Python accepts Int, Double, String, Bool, Unit, null, Lists and Tuples built from them, Py values, and functions that take Py",
+        "Python に渡せるのは Int・Double・String・Bool・Unit・null と、それらからなる List・Tuple、Py の値、そして Py を受け取る関数です",
     ),
     "run.py-convert": (
         "{fn}: a Python {pytype} cannot be converted to {type}",

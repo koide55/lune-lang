@@ -1,0 +1,7 @@
+module truth
+import python.numpy as np
+
+# Comparing an array gives an array, which cannot be used as a condition as it is.
+let scores = np.array([72.0, 85.0, 90.0])
+
+let verdict = if scores > 70.0 then "pass" else "fail"

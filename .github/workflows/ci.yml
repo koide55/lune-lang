@@ -42,13 +42,22 @@ jobs:
           PYTHONPATH: .
           LUNE_LANG: ja
 
+      # Chapter 14 of the book calls NumPy. It is installed only now, after the
+      # unit tests, so those keep proving that the interpreter needs nothing
+      # beyond the standard library.
+      - name: Install NumPy for the book's chapter 14
+        run: python -m pip install numpy
+
       # Exercises the real CLI end to end: every code example in books/ is
       # type-checked, evaluated, formatted and diff'd against its expected
       # output. Catches drift between the compiler and the textbook.
+      # LUNE_BOOK_REQUIRE_NUMPY turns a skipped NumPy example into a failure.
       - name: Book examples
         run: |
           bash books/tools/check_examples.sh
           bash books/tools/check_examples.sh en
+        env:
+          LUNE_BOOK_REQUIRE_NUMPY: "1"
 
   # The site's book comes from a build, so a broken book stops GitHub Pages
   # from updating at all — and that failure would land on main, after review.

@@ -1,0 +1,4 @@
+error[TYP0003]: if の条件: Bool が必要ですが、Py が見つかりました
+   = hint: Python の値は `asBool(...)` で Bool に変換できます
+   = hint: 配列の全要素・いずれかの要素を調べるなら `np.all(...)` / `np.any(...)` を使ってください
+   = help: 詳しくは `lune explain TYP0003 --lang ja` を実行してください

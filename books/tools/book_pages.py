@@ -221,6 +221,10 @@ CONCEPTS_JA: list[tuple[str, list[str]]] = [
     (":thunks", [":thunks"]),
     (":trace", [":trace"]),
     ("Playground", ["Playground"]),
+    ("Python 連携", []),
+    ("Py 型", ["Py 型"]),
+    ("import python", ["import python"]),
+    ("NumPy", ["NumPy"]),
 ]
 
 
@@ -286,6 +290,10 @@ CONCEPTS_EN: list[tuple[str, list[str]]] = [
     (":thunks", [":thunks"]),
     (":trace", [":trace"]),
     ("Playground", ["Playground"]),
+    ("Python interoperation", []),
+    ("Py type", ["`Py` type", "Py type"]),
+    ("import python", ["import python"]),
+    ("NumPy", ["NumPy"]),
 ]
 
 

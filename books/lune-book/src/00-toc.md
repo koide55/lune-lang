@@ -19,6 +19,8 @@
 | 第11章 | [エラーと対話する](11-talking-to-the-compiler.md) |
 | 第12章 | [REPL・整形・検査](12-tools.md) |
 | 第13章 | [プログラムを組み立てる — ケーススタディ](13-case-studies.md) |
+| **第IV部 Python とつながる** |  |
+| 第14章 | [Python の力を借りる](14-python.md) |
 |  | [付録A 言語リファレンスマニュアル](appendix-a-reference.md) |
 |  | [付録B 標準ライブラリリファレンス](appendix-b-stdlib.md) |
 |  | [付録C 診断コード一覧](appendix-c-diagnostics.md) |

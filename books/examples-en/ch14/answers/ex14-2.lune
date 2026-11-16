@@ -1,0 +1,7 @@
+module ex14_2
+import python.numpy as np
+
+# Exercise 14-2: an array comparison is an array, so reduce it to one truth value with np.all, then convert to Bool.
+let scores = np.array([72.0, 85.0, 90.0])
+
+let verdict = if asBool(np.all(scores > 70.0)) then "pass" else "fail"

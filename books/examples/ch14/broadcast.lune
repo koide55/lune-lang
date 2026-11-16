@@ -1,0 +1,11 @@
+module broadcast
+import python.numpy as np
+
+# 形の合わない配列は、Python の例外になる。
+let a = np.array([1, 2, 3])
+
+let b = np.array([1, 2])
+
+let combined = a + b
+
+let typo = np.summ(a)

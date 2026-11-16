@@ -1,0 +1,7 @@
+module ex14_3
+import python.builtins as py
+
+# 演習 14-3: 単語を長さの順に並べる。key に渡すラムダの引数は Py。
+let words = ["banana", "fig", "kiwi", "apple"]
+
+let byLength = map(asList(py.sorted(words, key = fn w -> py.len(w))), asString)

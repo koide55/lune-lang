@@ -26,6 +26,10 @@
 - [REPL・整形・検査](12-tools.md)
 - [プログラムを組み立てる — ケーススタディ](13-case-studies.md)
 
+# 第IV部 Python とつながる
+
+- [Python の力を借りる](14-python.md)
+
 ---
 
 [付録A 言語リファレンスマニュアル](appendix-a-reference.md)

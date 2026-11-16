@@ -263,7 +263,8 @@ let twice = (fold(xs, 0, fn acc x -> acc + x), fold(xs, 0, fn acc x -> acc + x))
         # `--eval` skips the type checker; the evaluator must refuse on its own.
         cases = {
             "let y = toPy(1) + Some(1)\n": "Some cannot be passed to Python",
-            "let y = toPy(fn x -> x)\n": "Lune functions cannot be passed to Python yet",
+            # Python may call `Some`; it is the result that cannot come back.
+            "let y = toPy(Some)(1)\n": "a Lune value of type Some cannot be passed to Python",
             "let y = asInt(1)\n": "asInt expects a Py value, got Int",
             "let y = [1, 2][0]\n": "only on Python values",
             "let y = if toPy(true) then 1 else 2\n": "expected Bool, got Py",
@@ -322,6 +323,67 @@ let after = (shuffled, xs)
     def test_duplicate_keyword_is_reported(self) -> None:
         exc = runtime_error("import python.builtins as py\n\nlet n = py.int(\"1\", base = 2, base = 3)\n", "n")
         self.assertIn("`base` is given more than once", exc.diagnostic.message)
+
+
+class PyCallbackTests(unittest.TestCase):
+    """Lune functions handed to Python (PYTHON_INTEROP_SPEC.md section 5.5)."""
+
+    SOURCE = """
+import python.builtins as py
+import python.functools as ft
+import python.collections as col
+
+def byLast(x: Py): Int = asInt(x) % 10
+
+let xs = [31, 12, 23, 44]
+let lambdaKey = map(asList(py.sorted(xs, key = fn x -> asInt(x) % 10)), asInt)
+let defKey = map(asList(py.sorted(xs, key = byLast, reverse = true)), asInt)
+let builtinKey = map(asList(py.sorted([toPy(2.5), toPy(1)], key = asDouble)), pyStr)
+let mapped = map(asList(py.map(fn x -> asInt(x) * 2, xs)), asInt)
+let folded = asInt(ft.reduce(fn acc x -> asInt(acc) + asInt(x), xs, 0))
+let factory = asInt(col.defaultdict(fn -> 0)["missing"])
+"""
+
+    def test_lambdas_defs_and_builtins_are_called_by_python(self) -> None:
+        check_source(self.SOURCE)
+        self.assertEqual(shown(self.SOURCE, "lambdaKey"), "(31 12 23 44)")
+        self.assertEqual(shown(self.SOURCE, "defKey"), "(44 23 12 31)")
+        self.assertEqual(shown(self.SOURCE, "builtinKey"), '("1" "2.5")')
+        self.assertEqual(shown(self.SOURCE, "mapped"), "(62 24 46 88)")
+        self.assertEqual(evaluate(self.SOURCE, "folded"), 110)
+        self.assertEqual(evaluate(self.SOURCE, "factory"), 0)
+
+    def test_an_unannotated_lambda_in_a_python_call_takes_py(self) -> None:
+        # No TYP0010 warning: Python is what calls it, and Python passes Py.
+        env = check_source("import python.builtins as py\n\nlet a = py.map(fn x -> asInt(x), [1])\n")
+        self.assertEqual(env.warnings, [])
+
+    def test_a_function_taking_lune_types_is_rejected(self) -> None:
+        for argument in ("fn (x: Int) -> x", "inc"):
+            with self.subTest(argument=argument):
+                exc = type_error(
+                    f"import python.builtins as py\n\ndef inc(x: Int): Int = x + 1\n\nlet a = py.sorted([1], key = {argument})\n"
+                )
+                self.assertIn("Int -> Int cannot be passed to Python", exc.diagnostic.message)
+                self.assertIn("declare its parameters as Py", exc.diagnostic.hints[0])
+
+    def test_a_function_returning_a_lune_only_value_is_rejected(self) -> None:
+        exc = type_error("import python.builtins as py\n\nlet a = py.map(fn x -> Some(x), [1])\n")
+        self.assertEqual(exc.diagnostic.hints[0], "the function returns Option[Py], which Python cannot receive")
+
+    def test_wrong_argument_count_is_a_python_type_error(self) -> None:
+        exc = runtime_error("import python.functools as ft\n\nlet a = ft.reduce(fn x -> x, [1, 2, 3])\n", "a")
+        self.assertEqual(exc.diagnostic.code, "RUN0007")
+        self.assertIn("Lune function `<lambda>` takes 1 argument, got 2", exc.diagnostic.message)
+
+    def test_a_lune_error_inside_passes_through_python(self) -> None:
+        exc = runtime_error("import python.builtins as py\n\nlet a = py.sorted([1, 2], key = fn x -> crash())\n", "a")
+        self.assertEqual(exc.diagnostic.code, "RUN0006")
+
+    def test_keyword_arguments_from_python_are_refused(self) -> None:
+        source = "import python.functools as ft\n\nlet a = ft.partial(fn x -> x, x = 1)()\n"
+        exc = runtime_error(source, "a")
+        self.assertIn("takes no keyword arguments", exc.diagnostic.message)
 
 
 class PyImportTests(unittest.TestCase):
@@ -442,6 +504,16 @@ let items = map(asList(col), asInt)
     def test_array_equality_inside_a_list_is_refused(self) -> None:
         exc = runtime_error("import python.numpy as np\n\nlet a = np.array([1, 2])\nlet e = [a] == [a]\n", "e")
         self.assertIn("np.array_equal", " ".join(exc.diagnostic.hints))
+
+    def test_numpy_calls_lune_functions(self) -> None:
+        source = """
+import python.numpy as np
+
+let doubled = np.vectorize(fn x -> asDouble(x) * 2.0)(np.arange(3))
+let table = np.fromfunction(fn i j -> i * 10 + j, (2, 3))
+"""
+        self.assertEqual(shown(source, "doubled"), "[0. 2. 4.]")
+        self.assertEqual(shown(source, "table"), "[[ 0.  1.  2.]\n [10. 11. 12.]]")
 
     def test_as_bool_on_an_array_is_refused(self) -> None:
         exc = runtime_error("import python.numpy as np\n\nlet b = asBool(np.array([true, false]))\n", "b")

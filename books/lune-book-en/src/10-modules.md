@@ -170,6 +170,8 @@ An import beginning with `java.`, `javax.`, `kotlin.` or `std.` is treated as an
 
 Since everything passes as `Any`, external imports are a region where type checking does not protect you. It is wise not to use them in programs written for v0.1.
 
+**`python.*` is different.** `import python.numpy as np` really loads the Python module, and `np` gets its own type, `Py`, rather than `Any`. Using Python libraries while keeping the type checker's protection is the subject of chapter 14.
+
 > **Break it** — produce two of this chapter's `MOD` diagnostics yourself: `MOD0001` (not found) and `MOD0003` (mismatched tag). You can also move from one to the other: keep `import nothere`, create `nothere.lune`, and write `module wrong.name` in it — `MOD0001` becomes `MOD0003`.
 >
 > ```text,diagnostic
@@ -195,7 +197,7 @@ Since everything passes as `Any`, external imports are a region where type check
 | cycles | `MOD0002`; dependencies are evaluated first, so no loops |
 | search order | the entry file's directory → the current directory → `--module-path` |
 | diagnostics | `MOD0001` not found (with where it looked) / `MOD0003` mismatched tag (hints both ways) |
-| external imports | `java.*`, `std.*` and friends are registered as `Any` only; effectively unusable in v0.1 |
+| external imports | `java.*`, `std.*` and friends are registered as `Any` only; effectively unusable in v0.1 (`python.*` is chapter 14) |
 
 ## Exercises
 

@@ -1,0 +1,7 @@
+error[TYP0003]: Int -> Int 型の値は Python に渡せません
+  --> callback_bad.lune:8:41
+  |
+8 | let sorted = py.sorted([3, 1, 2], key = inc)
+  |                                         ^^^ Python に対応する値がない
+   = hint: Python は関数を Py の値で呼びます。引数は Py と宣言するか、ラムダなら注釈を省き、中で変換してください（例: `fn x -> asInt(x) + 1`）
+   = help: 詳しくは `lune explain TYP0003 --lang ja` を実行してください

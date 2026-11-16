@@ -1,0 +1,7 @@
+module stream
+import python.itertools as it
+
+# Python の無限イテレータも、Lune では遅延リストになる。
+let evens = map(asList(it.count(0, 2)), asInt)
+
+let firstFive = take(evens, 5)

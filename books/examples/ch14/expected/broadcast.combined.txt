@@ -1,0 +1,3 @@
+error[RUN0007]: Python で例外が発生しました: ValueError: operands could not be broadcast together with shapes (3,) (2,)
+   = hint: Python のトレースバック全体は `lune --py-traceback` で表示できます
+   = help: 詳しくは `lune explain RUN0007 --lang ja` を実行してください

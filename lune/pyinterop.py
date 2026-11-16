@@ -5,7 +5,8 @@ and Python goes through this module, so the evaluator only has to recognise a
 `PyObject` and hand it over:
 
 - Lune -> Python is implicit. Arguments, index keys and operands are forced
-  and converted by `to_python` (spec §5.1).
+  and converted by `to_python` (spec §5.1). A Lune function becomes a Python
+  callable that takes Py arguments (spec §5.5).
 - Python -> Lune is explicit. Every result is wrapped in a `PyObject`, and only
   the `as*` builtins turn one back into a Lune value (spec §6).
 - A Python exception becomes `RUN0007` (spec §9). Python's own traceback is
@@ -42,6 +43,8 @@ from .evaluator import (
     RecordConstructorValue,
     TupleValue,
     _forced_tail,
+    apply_function,
+    apply_value,
     force_value,
     type_name,
 )
@@ -154,7 +157,40 @@ def _guard(compute):
 
 # --- Lune -> Python ----------------------------------------------------------
 
-_CALLABLE_KINDS = (FunctionValue, BuiltinFunction, ConstructorValue, PartialConstructorValue, RecordConstructorValue)
+# What Python can call. A record constructor is missing on purpose: it takes
+# only named fields, and a Python callback is called positionally.
+_CALLABLE_KINDS = (FunctionValue, BuiltinFunction, ConstructorValue, PartialConstructorValue)
+
+
+def _as_python_callable(function):
+    """A Lune function as a Python callable (spec §5.5).
+
+    Python's arguments arrive as Py values and the result goes back through
+    `to_python`, forced in full: the call is a strict boundary in this
+    direction too. A Lune error raised inside passes through the Python code
+    that called it and reaches the user unchanged, because `_guard` lets
+    diagnostics through.
+    """
+    name = getattr(function, "name", None) or "<lambda>"
+    params = function.params if isinstance(function, FunctionValue) else None
+
+    def call_from_python(*args, **kwargs):
+        if kwargs:
+            raise TypeError(f"Lune function `{name}` takes no keyword arguments")
+        if params is not None and len(args) != len(params):
+            # Currying would turn too few arguments into a function handed
+            # back to Python, which is never what the Python side meant.
+            expected = f"{len(params)} argument" + ("" if len(params) == 1 else "s")
+            raise TypeError(f"Lune function `{name}` takes {expected}, got {len(args)}")
+        values = [PyObject(arg) for arg in args]
+        if params is not None and not params:
+            result = apply_function(function, [])
+        else:
+            result = apply_value(function, values)
+        return to_python(result)
+
+    call_from_python.__name__ = call_from_python.__qualname__ = name
+    return call_from_python
 
 
 def to_python(value) -> object:
@@ -180,7 +216,7 @@ def to_python(value) -> object:
             current = _forced_tail(current)
         return items
     if isinstance(value, _CALLABLE_KINDS):
-        raise LuneRuntimeError(t("run.py-pass-function"), hints=[t("hint.py-convertible")])
+        return _as_python_callable(value)
     raise LuneRuntimeError(t("run.py-unconvertible", type=type_name(value)), hints=[t("hint.py-convertible")])
 
 

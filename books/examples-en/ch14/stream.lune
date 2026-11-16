@@ -1,0 +1,7 @@
+module stream
+import python.itertools as it
+
+# Even an infinite Python iterator becomes a lazy list in Lune.
+let evens = map(asList(it.count(0, 2)), asInt)
+
+let firstFive = take(evens, 5)

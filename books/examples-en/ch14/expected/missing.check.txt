@@ -1,0 +1,7 @@
+error[MOD0004]: Python module not found: torch
+  --> missing.lune:2:1
+  |
+2 | import python.torch as torch
+  | ^^^^^^ not installed in the Python that runs lune
+   = hint: install it with `python3 -m pip install torch` (this is the Python that runs lune)
+   = help: run `lune explain MOD0004` for a detailed explanation

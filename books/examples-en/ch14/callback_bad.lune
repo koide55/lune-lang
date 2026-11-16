@@ -1,0 +1,8 @@
+module callback_bad
+import python.builtins as py
+
+# A function taking Lune types cannot be called from Python.
+def inc(x: Int): Int =
+    x + 1
+
+let sorted = py.sorted([3, 1, 2], key = inc)

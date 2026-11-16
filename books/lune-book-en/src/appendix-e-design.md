@@ -58,6 +58,12 @@ The reason is a choice of battlefield, not of capability. Java interoperation is
 
 That `class` and `new` are syntax errors while still being reserved keywords — that half-way state is the mark of this freeze. The seats are kept for the future; nobody is sitting in them yet.
 
+### Not frozen — Python interoperation
+
+Calling another language's libraries is frozen for Java, but not for Python (chapter 14). Unlike Java it needs no new runtime — the implementation already runs on Python — and it works inside the Playground as it is. Within the teaching use, it buys the ability to let NumPy do the computing. Lune's implementation is slow, and handing the heavy work to NumPy makes that slowness stop mattering.
+
+In exchange, Lune made a hole in a principle it had kept until then: Python's behaviour is not let in. The `Py` type marks where the hole is. Inside a `Py` value Python's rules apply, and the way back to a Lune type always goes through `asInt` and its kind. If there has to be a hole, the compiler should be able to show you where it is.
+
 ### Not there yet — `try` / `catch`
 
 There is no tool for throwing failure as an exception. This is a matter of **order** rather than of freezing. The tools that **return failure as a value** — `Result` in chapter 5 and `T?` in chapter 7 — were put in place first, and exceptions overlap with them. Chapter 9's "express recoverable failure as a value; `raise` is for when stopping the program is correct" is the consequence of that design.
@@ -70,7 +76,7 @@ Some of these are not philosophy but simply **not got round to yet**. A.6 lists 
 
 ## E.4 If you want to read the implementation
 
-Lune's implementation is pure Python under `lune/`, about 7,500 lines, with **no external dependencies**. It can be read in a day, which makes it a good subject for a first reading of a language implementation.
+Lune's implementation is pure Python under `lune/`, about 8,700 lines, with **no external dependencies**. It can be read in a day, which makes it a good subject for a first reading of a language implementation.
 
 The sources are laid out in the order of the checks. The families of diagnostic codes from A.1 (`LXL` → `LAY` → `PRS` → `MOD` → `TYP` → `RUN`) are also the order of the files.
 

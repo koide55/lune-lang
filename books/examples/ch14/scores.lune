@@ -1,0 +1,11 @@
+module scores
+import python.numpy as np
+
+# 第14章: 計算は NumPy に任せ、結果だけを Lune に持ち帰る。
+let scores = np.array([72.0, 85.0, 90.0, 64.0, 78.0])
+
+let mean = asDouble(np.mean(scores))
+
+let best = asInt(np.argmax(scores))
+
+let normalized = (scores - np.mean(scores)) / np.std(scores)

@@ -1,0 +1,7 @@
+module ex14_3
+import python.builtins as py
+
+# Exercise 14-3: sort words by length. The parameter of the lambda given as key is Py.
+let words = ["banana", "fig", "kiwi", "apple"]
+
+let byLength = map(asList(py.sorted(words, key = fn w -> py.len(w))), asString)

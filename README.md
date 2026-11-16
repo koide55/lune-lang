@@ -9,7 +9,7 @@
 >
 > **Lune is a teaching-first functional language: lazy by default, with diagnostics that speak your native language.** English is the default for every message and explanation, so nothing below is needed to get started.
 >
-> - **[Read the book](https://koide55.github.io/lune-lang/book/en/)** — *The Lune Programming Language*: a preface, 13 chapters and five appendices, every output in it taken from a real run ([PDF](https://koide55.github.io/lune-lang/book/en/lune-book.pdf)). Chapter 1 alone is a one-hour tour; chapter 4 is what the language is for.
+> - **[Read the book](https://koide55.github.io/lune-lang/book/en/)** — *The Lune Programming Language*: a preface, 14 chapters and five appendices, every output in it taken from a real run ([PDF](https://koide55.github.io/lune-lang/book/en/lune-book.pdf)). Chapter 1 alone is a one-hour tour; chapter 4 is what the language is for.
 > - **[Try it in the browser](https://koide55.github.io/lune-lang/playground/)** — the implementation itself, running in the page. Nothing to install.
 > - **Install it**: `pip install lune-lang`, then `lune --repl`.
 > - **[Every diagnostic explained](https://koide55.github.io/lune-lang/playground/errors.html)** — all 33 codes, with the smallest example that produces each one.
@@ -128,8 +128,8 @@ nat : evaluated = Cons(1, <thunk>)   # 先頭だけ計算済み。続きは手�
 
 ## 資料棚 — ドキュメント
 
-- **[教科書『プログラミング言語 Lune』](https://koide55.github.io/lune-lang/book/)** — 序章+全13章+付録A〜E。腰を据えて体系的に学ぶならこちら。演習には解答付き。[1冊にまとめた PDF](https://koide55.github.io/lune-lang/book/lune-book.pdf)(A4・167ページ、しおり付き)もあります([原稿は books/](https://github.com/koide55/lune-lang/blob/main/books/README.md))
-- [The Lune Programming Language (English edition)](https://koide55.github.io/lune-lang/book/en/) — 教科書の英語版。序章+全13章+付録A〜E、[PDF](https://koide55.github.io/lune-lang/book/en/lune-book.pdf) もあります
+- **[教科書『プログラミング言語 Lune』](https://koide55.github.io/lune-lang/book/)** — 序章+全14章+付録A〜E。腰を据えて体系的に学ぶならこちら。演習には解答付き。[1冊にまとめた PDF](https://koide55.github.io/lune-lang/book/lune-book.pdf)(A4・188ページ、しおり付き)もあります([原稿は books/](https://github.com/koide55/lune-lang/blob/main/books/README.md))
+- [The Lune Programming Language (English edition)](https://koide55.github.io/lune-lang/book/en/) — 教科書の英語版。序章+全14章+付録A〜E、[PDF](https://koide55.github.io/lune-lang/book/en/lune-book.pdf) もあります
 - [診断コード索引(日本語)](https://github.com/koide55/lune-lang/blob/main/documents/ERROR_INDEX_JA.md) / [Error Index (English)](https://github.com/koide55/lune-lang/blob/main/documents/ERROR_INDEX.md) — 自動生成、テストで同期を強制
 - [言語仕様](https://github.com/koide55/lune-lang/blob/main/documents/LANGUAGE_SPEC.md)ほか、[documents/](https://github.com/koide55/lune-lang/blob/main/documents/README.md) に仕様書一式
 - [普及戦略](https://github.com/koide55/lune-lang/blob/main/documents/STRATEGY.md) — この部がどこへ向かうか

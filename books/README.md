@@ -26,7 +26,7 @@
 - 表紙: `lune-book/src/00-cover.md` — 書名・副題・著者。HTML では `index.html`、PDF では 1 ページ目
 - 目次: `lune-book/src/00-toc.md`、索引: `src/zz-index.md` — どちらも生成物（下の「PDF」を参照）
 - 序章: `lune-book/src/00-preface.md` — README の部活の物語と地続きの入り口
-- 本文: `01-tour.md` 〜 `13-case-studies.md`（全13章）。目次の正は `SUMMARY.md`
+- 本文: `01-tour.md` 〜 `14-python.md`（全14章。第14章「Python の力を借りる」は 2026-10-21 に追加）。目次の正は `SUMMARY.md`
 - 付録: `appendix-a-reference.md`（言語リファレンス）〜 `appendix-e-design.md`（設計と、これから）
 - 決定済み: 書名『プログラミング言語 Lune』、組版は **mdBook/HTML**、
   診断表示は**日本語**（2026-07-24 全面差し替え済み。規約: `export LUNE_LANG=ja`）、

@@ -1,0 +1,8 @@
+module callback_bad
+import python.builtins as py
+
+# Lune の型を受け取る関数は、Python からは呼べない。
+def inc(x: Int): Int =
+    x + 1
+
+let sorted = py.sorted([3, 1, 2], key = inc)

@@ -1,0 +1,20 @@
+module dice
+import python.random
+
+# 先に使われた束縛が、先に乱数を受け取る。
+def lazyDraws(): Tuple[Double, Double] =
+    random.seed(42)
+    let x = asDouble(random.random())
+    let y = asDouble(random.random())
+    (y, x)
+
+# strict let は書いた順に評価する。
+def strictDraws(): Tuple[Double, Double] =
+    random.seed(42)
+    strict let x = asDouble(random.random())
+    strict let y = asDouble(random.random())
+    (y, x)
+
+let lazyPair = lazyDraws()
+
+let strictPair = strictDraws()

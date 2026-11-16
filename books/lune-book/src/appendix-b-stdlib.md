@@ -1,6 +1,6 @@
 # 付録B 標準ライブラリリファレンス
 
-prelude（前奏曲）に入っている全 41 個の名前です。`import` は要りません。どのファイルでも
+prelude（前奏曲）に入っている全 50 個の名前です。`import` は要りません。どのファイルでも
 REPL でも、最初から見えています。
 
 いま手元の処理系が何を持っているかは、REPL に聞くのがいちばん確かです。
@@ -229,6 +229,44 @@ deepForce x      # x を中身まで残らず評価する
 ```
 
 評価の順序と深さを制御する道具として、第4章 4.7 で扱います。
+
+## B.9 Python との境界
+
+Python の値（`Py` 型）と Lune の値を行き来させる関数です（第14章）。`as` で始まるものは
+`Py` を Lune の型に変換し、変換できなければ `RUN0006` で止まります。`asBool` は
+「真っぽい値」を受け付けず、Python の真偽値だけを `Bool` にします。
+
+| 名前 | 型 | 意味 |
+| --- | --- | --- |
+| `asInt` | `Py -> Int` | 整数（NumPy の整数も）を `Int` にする。真偽値は不可 |
+| `asDouble` | `Py -> Double` | 実数（整数も）を `Double` にする |
+| `asString` | `Py -> String` | 文字列を `String` にする |
+| `asBool` | `Py -> Bool` | 真偽値（NumPy の真偽値も）を `Bool` にする |
+| `asList` | `Py -> List[Py]` | 反復できるものを**遅延リスト**にする。無限のイテレータでもよい |
+| `asNullable` | `Py -> Nullable[Py]` | Python の `None` を `null` に、それ以外はそのまま |
+| `toPy` | `[T] T -> Py` | Lune の値を Python の値にする（Python に渡せる型だけ） |
+| `pyStr` | `Py -> String` | Python の `str()` で文字列にする |
+| `pySlice` | `Nullable[Int] -> Nullable[Int] -> Py` | Python の `slice(start, stop)`。`m[pySlice(null, null), 0]` で `m[:, 0]` |
+
+```text
+lune> import python.math
+ok
+lune> math.floor(2.7)
+2 : Py
+lune> asInt(math.floor(2.7))
+2 : Int
+lune> asDouble(math.pi)
+3.141592653589793 : Double
+lune> map(asList(toPy([1, 2, 3])), asInt)
+(1 2 3) : List[Int]
+lune> asNullable(toPy(()))
+null : Nullable[Py]
+lune> pyStr(toPy([1, 2]))
+"[1, 2]" : String
+```
+
+`asList` の結果は遅延リストなので、無限リストの列（○/×）で言えば「作る側」です。
+Python の `itertools.count()` を包んでも、`take` で必要な分だけ取り出せます。
 
 ## この付録の出どころ
 
