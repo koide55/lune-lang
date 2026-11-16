@@ -69,11 +69,28 @@ trap restore EXIT
 render() { # 出力先
     ( cd "$BOOK_DIR" && mdbook build > /dev/null )
     # print.html は CSS/フォントを相対パスで読むので file:// でも解決できる
+    local url="file://$BOOK_DIR/book/print.html"
+    local log="$TMP/chrome.log"
+    rm -f "$1"
     "$CHROME" --headless --disable-gpu --no-pdf-header-footer \
         --virtual-time-budget=20000 \
-        --print-to-pdf="$1" "file://$BOOK_DIR/book/print.html" \
-        2> >(grep -v -E "ERROR:|allocator|bytes written" >&2 || true)
-    [ -s "$1" ] || { echo "error: PDF が生成されませんでした" >&2; exit 1; }
+        --print-to-pdf="$1" "$url" > "$log" 2>&1 || true
+    if [ ! -s "$1" ]; then
+        # Chrome は無害なログを大量に出すが、PDF が出なかったときはその中に
+        # 理由がある。落とさずに全部見せてから、新しい headless と --no-sandbox
+        # （CI のコンテナで要ることがある）でもう一度だけ試す。
+        echo "warning: Chrome が PDF を書かなかった ($("$CHROME" --version 2>/dev/null || echo "$CHROME")). stderr:" >&2
+        sed 's/^/    | /' "$log" >&2
+        echo "==> --headless=new --no-sandbox で再試行" >&2
+        "$CHROME" --headless=new --no-sandbox --disable-gpu --no-pdf-header-footer \
+            --timeout=60000 \
+            --print-to-pdf="$1" "$url" > "$log" 2>&1 || true
+    fi
+    if [ ! -s "$1" ]; then
+        sed 's/^/    | /' "$log" >&2
+        echo "error: PDF が生成されませんでした" >&2
+        exit 1
+    fi
 }
 
 # ページ番号を入れると目次自体の行数が変わり、その分だけ本文がずれることがある
