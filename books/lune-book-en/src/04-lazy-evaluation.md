@@ -54,6 +54,59 @@ The failure is remembered too. §4.5 makes clear what that is worth.
 
 > **Terminology** — making a thunk evaluate is called **forcing** it. "Force `x`" = "make `x` keep its promise now".
 
+### A promise about a name that does not exist yet — forward references
+
+Since a `let` is a promise, the names it uses do not have to exist at the moment it is written. They only have to be there by the time the promise is kept. Let's write a `main` that uses `greet` before `greet` has been defined.
+
+```text
+lune> let main = println(greet("world"))
+ok
+   = note: `greet` is not defined yet; `main` will be checked once it is
+lune> :thunks main
+main : unevaluated
+lune> :type main
+main : ? (waiting for greet)
+```
+
+No error. `main` is accepted as a promise that is waiting for `greet`, and it is bound as a thunk. What happens if we use it without waiting?
+
+```text,diagnostic
+lune> main
+error[TYP0001]: undefined name: greet
+  --> <repl:1>:1:20
+  |
+1 | let main = println(greet("world"))
+  |                    ^^^^^ name is not defined
+   = hint: did you mean `repeat`?
+   = hint: `main` is waiting for `greet` to be defined
+   = help: run `lune explain TYP0001` for a detailed explanation
+lune> :thunks main
+main : unevaluated
+```
+
+The type checker stopped us because `greet` is still missing, so the thunk was never touched — it is `unevaluated`, not `failed`. Recall from 4.2 that failures are remembered: had evaluation gone ahead here, `main` would never have worked again. Type checking first is also that insurance.
+
+Now define `greet`.
+
+```text
+lune> def greet(name: String): String =
+...     "hello, " + name
+...
+ok
+   = note: `main` is now checked: Unit
+lune> :thunks main
+main : unevaluated
+lune> main
+hello, world
+() : Unit
+lune> :thunks main
+main : evaluated = ()
+```
+
+The moment `greet` arrived, the **type** of `main` was settled — but look at `:thunks`: still `unevaluated`. **Getting a type and being evaluated are separate events**, and evaluation still happens only when `main` is used. Defined, typed, used: three distinct moments in the life of one thunk, all visible.
+
+This is not a special rule for the REPL. In a Lune file, `let main = ...` may appear **above** `def greet` and the file is accepted, because top-level bindings are promises and need only be kept once the whole file has been read. The REPL is one file being written a line at a time, so it has the same freedom of order. The limits are the same as a file's, too: what may be used before its definition is a **`def` with a declared return type** and a constructor. If the name being waited for turns out to be defined by a `let`, the result is the same `TYP0001` a file would give (for the same reason recursive functions need a return type in 3.7: to use a function whose body has not been checked yet, you need its signboard, the return type).
+
 ## 4.3 When does evaluation happen — watching with :trace
 
 So when does forcing happen? Type `:trace on` and the REPL narrates every force as it occurs.
@@ -542,4 +595,4 @@ The smallest reproduction is a file containing `let x = x + 1`, run with `--eval
 
 ---
 
-**More precisely** — the complete list of thunk state transitions and forcing boundaries is in `documents/LAZY_EVALUATION_SPEC.md`; the display specification for `:thunks` and `:trace` is in `documents/REPL_SPEC.md` §5.1–5.2. `crash`, `tick` and `tickCount` are the observation built-ins of `documents/STANDARD_LIBRARY_SPEC.md` §8.1. The code examples of this chapter live in `books/examples-en/ch04/` and are all verified against the real CLI.
+**More precisely** — the complete list of thunk state transitions and forcing boundaries is in `documents/LAZY_EVALUATION_SPEC.md`; the display specification for `:thunks` and `:trace` is in `documents/REPL_SPEC.md` §5.1–5.2, and the forward-reference rules in its §2.1. `crash`, `tick` and `tickCount` are the observation built-ins of `documents/STANDARD_LIBRARY_SPEC.md` §8.1. The code examples of this chapter live in `books/examples-en/ch04/` and are all verified against the real CLI.

@@ -54,6 +54,59 @@ boom : failed = error[RUN0006] crash() が評価されました
 
 > **用語** — サンクを評価させることを「**force する**（強制する）」といいます。「`x` を force する」＝「`x` の約束を今すぐ果たさせる」です。
 
+### まだ無い名前への約束 — 前方参照
+
+約束なのですから、約束の中で使う名前がその時点で存在している必要はありません。果たす時までに揃っていればよいのです。`greet` を定義する前に、`greet` を使う `main` を書いてみます。
+
+```text
+lune> let main = println(greet("world"))
+ok
+   = note: `greet` はまだ定義されていません。定義されたときに `main` を検査します
+lune> :thunks main
+main : unevaluated
+lune> :type main
+main : ? (waiting for greet)
+```
+
+エラーにはなりません。`main` は「`greet` が来るのを待っている約束」として受け取られ、サンクとして束縛されました。待たずに使うとどうなるでしょう。
+
+```text,diagnostic
+lune> main
+error[TYP0001]: 未定義の名前: greet
+  --> <repl:1>:1:20
+  |
+1 | let main = println(greet("world"))
+  |                    ^^^^^ この名前は定義されていない
+   = hint: もしかして `repeat` ですか?
+   = hint: `main` は `greet` の定義を待っています
+   = help: 詳しくは `lune explain TYP0001 --lang ja` を実行してください
+lune> :thunks main
+main : unevaluated
+```
+
+型検査が「`greet` がまだ無い」と止めたので、サンクには触れられもしませんでした — `failed` ではなく `unevaluated` のままです。4.2節で見たとおり失敗は記憶されますから、ここで評価まで進んでいたら `main` は二度と動かなくなるところでした。型検査が先に立つのは、その保険でもあります。
+
+では `greet` を定義します。
+
+```text
+lune> def greet(name: String): String =
+...     "hello, " + name
+...
+ok
+   = note: `main` の検査が完了しました: Unit
+lune> :thunks main
+main : unevaluated
+lune> main
+hello, world
+() : Unit
+lune> :thunks main
+main : evaluated = ()
+```
+
+`greet` が揃った瞬間に `main` の**型**は確定しましたが、`:thunks` を見てください — まだ `unevaluated` です。**型が付くことと評価されることは別の出来事**で、評価は相変わらず `main` を使った瞬間にしか起きません。定義した時、型が付いた時、使った時。サンクの一生に、3つの時刻が区別して見えています。
+
+これは REPL だけの特別ルールではありません。Lune のファイルでは、`let main = ...` を `def greet` より**上**に書いても通ります。トップレベルの束縛は約束なので、ファイル全体を読み終えてから果たせばよいからです。REPL は「1つのファイルを1行ずつ書き足している」ものなので、同じ順序の自由を持っています。ただし自由の範囲もファイルと同じで、定義より前に使えるのは**戻り値型を書いた `def`** とコンストラクタです。待っていた名前が `let` で定義されると、ファイルと同じ `TYP0001` になります（第3章 3.7節で「再帰関数には戻り値型が要る」と言ったのと同じ理由で、まだ本体を検査していない関数を使うには、看板である戻り値型が必要なのです）。
+
 ## 4.3 いつ評価されるのか — :trace で見る
 
 では、force はいつ起きるのでしょうか。`:trace on` を打つと、REPL は force が起きるたびに実況してくれます。
@@ -542,4 +595,4 @@ lune> length(xs)
 
 ---
 
-**より正確には** — サンクの状態遷移と force 境界の完全な一覧は `documents/LAZY_EVALUATION_SPEC.md`、`:thunks` / `:trace` の表示仕様は `documents/REPL_SPEC.md` §5.1–5.2。`crash` / `tick` / `tickCount` は `documents/STANDARD_LIBRARY_SPEC.md` §8.1 の観察用ビルトインです。この章のコード例は `books/examples/ch04/` にあり、すべて実際の CLI で検証されています。
+**より正確には** — サンクの状態遷移と force 境界の完全な一覧は `documents/LAZY_EVALUATION_SPEC.md`、`:thunks` / `:trace` の表示仕様は `documents/REPL_SPEC.md` §5.1–5.2、前方参照の規則は同 §2.1。`crash` / `tick` / `tickCount` は `documents/STANDARD_LIBRARY_SPEC.md` §8.1 の観察用ビルトインです。この章のコード例は `books/examples/ch04/` にあり、すべて実際の CLI で検証されています。
