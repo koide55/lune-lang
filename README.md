@@ -92,13 +92,21 @@ let answer = 42
 ```text
 lune> :trace on
 trace on
-lune> let y = x + 1
+lune> let x = 1 + 1
 ok                       # 宣言では何も評価されない
+lune> let y = x + 1
+ok                       # こちらも同じ。x もまだ手つかず
 lune> y * 10
 force y * 10
   force x + 1            # y が必要になって初めて評価される
-    memo 1 + 1 => 2      # x はメモ化済み。再計算されない
+    force 1 + 1          # その途中で x も初めて評価される
+    => 2
   => 3
+=> 30
+30 : Int
+lune> y * 10
+force y * 10
+  memo x + 1 => 3        # 2回目。x はメモ化済みで再計算されない
 => 30
 30 : Int
 ```
