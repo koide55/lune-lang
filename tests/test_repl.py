@@ -193,6 +193,180 @@ def add(x: Int, y: Int): Int =
         self.assertEqual(stderr.getvalue(), "")
 
 
+class ReplForwardReferenceTests(unittest.TestCase):
+    """Top-level `let`/`def` are lazy, so they may mention names defined later.
+
+    A file accepts `let main = greet("w")` above `def greet`, and the REPL is
+    the same module built up one input at a time, so the first input must not
+    be an error. The binding waits; its type check runs when `greet` arrives.
+    """
+
+    def setUp(self) -> None:
+        set_language("en")
+
+    GREET = 'def greet(name: String): String =\n    "hello, " + name\n'
+
+    def test_let_waits_for_a_later_definition(self) -> None:
+        session = ReplSession()
+        result = session.submit('let main = greet("world")')
+        self.assertEqual(result.kind, "ok")
+        self.assertIn("`greet` is not defined yet", result.message)
+        self.assertEqual(session.submit(":type main").message, "main : ? (waiting for greet)")
+        result = session.submit(self.GREET)
+        self.assertIn("`main` is now checked: String", result.message)
+        self.assertEqual(session.submit("main").message, '"hello, world" : String')
+        self.assertEqual(session.submit(":type main").message, "main : String")
+
+    def test_def_waits_for_a_later_definition(self) -> None:
+        session = ReplSession()
+        self.assertEqual(session.submit("def twice(n: Int): Int =\n    add(n, n)\n").kind, "ok")
+        session.submit("def add(a: Int, b: Int): Int =\n    a + b\n")
+        self.assertEqual(session.submit("twice(21)").message, "42 : Int")
+
+    def test_using_a_waiting_name_reports_the_missing_one(self) -> None:
+        session = ReplSession()
+        session.submit('let main = greet("world")', "<repl:1>")
+        with self.assertRaises(DiagnosticError) as caught:
+            session.submit("main", "<repl:2>")
+        diagnostic = caught.exception.diagnostic
+        self.assertEqual(diagnostic.code, "TYP0001")
+        self.assertIn("greet", diagnostic.message)
+        # points at the input that introduced the reference, not at `main`
+        self.assertEqual(diagnostic.primary.span.filename, "<repl:1>")
+        self.assertIn("`main` is waiting for `greet`", " ".join(diagnostic.hints))
+        # nothing was forced: the thunk is intact and runs once greet exists
+        self.assertEqual(session.submit(":thunks main").message, "main : unevaluated")
+        session.submit(self.GREET)
+        self.assertEqual(session.submit("main").message, '"hello, world" : String')
+
+    def test_chain_of_forward_references_resolves_in_one_step(self) -> None:
+        session = ReplSession()
+        session.submit("let a = f() + 1")
+        session.submit("def f(): Int =\n    g() * 2\n")
+        self.assertEqual(session.submit(":type a").message, "a : ? (waiting for f)")
+        result = session.submit("def g(): Int =\n    20\n")
+        self.assertIn("`f` is now checked: () -> Int", result.message)
+        self.assertIn("`a` is now checked: Int", result.message)
+        self.assertEqual(session.submit("a").message, "41 : Int")
+
+    def test_a_later_definition_can_still_make_the_binding_ill_typed(self) -> None:
+        session = ReplSession()
+        session.submit("let n = size() + 1")
+        result = session.submit('def size(): String =\n    "big"\n')
+        self.assertEqual(result.kind, "ok")
+        self.assertEqual([w.code for w in result.warnings], ["TYP0003"])
+        self.assertIn("`n` was waiting for `size`", " ".join(result.warnings[0].hints))
+        self.assertEqual(session.submit(":type n").message, "n : ? (failed: TYP0003)")
+        with self.assertRaises(DiagnosticError) as caught:
+            session.submit("n")
+        self.assertEqual(caught.exception.diagnostic.code, "TYP0003")
+        # reported once, not again on every later input
+        self.assertEqual(session.submit("let unrelated = 1").warnings, ())
+        # defining the name again retries the binding
+        result = session.submit("def size(): Int =\n    41\n")
+        self.assertIn("`n` is now checked: Int", result.message)
+        self.assertEqual(session.submit("n").message, "42 : Int")
+
+    def test_only_what_a_file_could_use_early_resolves_a_binding(self) -> None:
+        # In a file `let n = size + 1` above `let size = 41` is TYP0001: only a
+        # `def` with a return type (and a constructor) is predeclared. The REPL
+        # gives the same answer once it learns what `size` is.
+        cases = [
+            ("let size = 41", "is a `let`"),
+            ("var size = 41", "is a `var`"),
+            ("def size() =\n    41\n", "has no return type"),
+        ]
+        for source, reason in cases:
+            with self.subTest(source=source):
+                session = ReplSession()
+                session.submit("let n = size + 1" if "def" not in source else "let n = size() + 1", "<repl:1>")
+                result = session.submit(source, "<repl:2>")
+                self.assertEqual(result.kind, "ok")
+                self.assertEqual([w.code for w in result.warnings], ["TYP0001"])
+                diagnostic = result.warnings[0]
+                self.assertEqual(diagnostic.primary.span.filename, "<repl:1>")
+                self.assertIn(reason, " ".join(diagnostic.hints))
+                self.assertEqual(session.submit(":type n").message, "n : ? (failed: TYP0001)")
+                with self.assertRaises(DiagnosticError) as caught:
+                    session.submit("n")
+                self.assertEqual(caught.exception.diagnostic.code, "TYP0001")
+
+    def test_a_let_declared_after_the_binding_stays_hidden_from_it(self) -> None:
+        # `b` exists by the time `f` arrives, but a file would read
+        # `let a = f() + b` above `let b = 1` and reject it.
+        session = ReplSession()
+        session.submit("let a = f() + b")
+        session.submit("let b = 1")
+        result = session.submit("def f(): Int =\n    1\n")
+        self.assertEqual([w.code for w in result.warnings], ["TYP0001"])
+        self.assertIn("`b` is a `let`", " ".join(result.warnings[0].hints))
+
+    def test_mutual_recursion_across_inputs(self) -> None:
+        session = ReplSession()
+        session.submit("let main = isEven(10)")
+        session.submit("def isEven(n: Int): Bool =\n    if n == 0 then true else isOdd(n - 1)\n")
+        self.assertEqual(session.submit(":type isEven").message, "isEven : ? (waiting for isOdd)")
+        result = session.submit("def isOdd(n: Int): Bool =\n    if n == 0 then false else isEven(n - 1)\n")
+        self.assertIn("`isEven` is now checked: Int -> Bool", result.message)
+        self.assertIn("`main` is now checked: Bool", result.message)
+        self.assertEqual(session.submit("main").message, "true : Bool")
+
+    def test_mutual_recursion_that_still_waits_on_a_third_name(self) -> None:
+        session = ReplSession()
+        session.submit("def f(n: Int): Int =\n    g(n)\n")
+        result = session.submit("def g(n: Int): Int =\n    f(n) + h(n)\n")
+        self.assertIn("`h` is not defined yet; `g` will be checked once it is", result.message)
+        result = session.submit("def h(n: Int): Int =\n    n\n")
+        self.assertIn("`g` is now checked", result.message)
+        self.assertIn("`f` is now checked", result.message)
+
+    def test_var_stays_assignable_after_a_type_error(self) -> None:
+        session = ReplSession()
+        session.submit("var v = 1")
+        with self.assertRaises(LuneTypeError):
+            session.submit("nosuch")
+        session.submit("v = 2")
+        self.assertEqual(session.submit("v").message, "2 : Int")
+
+    def test_strict_and_pattern_bindings_do_not_wait(self) -> None:
+        session = ReplSession()
+        for source in ("strict let x = nosuch", "var v = nosuch", "let (p, q) = nosuch"):
+            with self.subTest(source=source), self.assertRaises(LuneTypeError) as caught:
+                session.submit(source)
+            self.assertEqual(caught.exception.diagnostic.code, "TYP0001")
+
+    def test_expressions_and_known_names_are_still_checked_eagerly(self) -> None:
+        session = ReplSession()
+        with self.assertRaises(LuneTypeError):
+            session.submit("nosuch + 1")
+        session.submit("let x = 1")
+        # `x` is known, so a type error against it is not a forward reference
+        with self.assertRaises(LuneTypeError) as caught:
+            session.submit('let y: String = x')
+        self.assertEqual(caught.exception.diagnostic.code, "TYP0003")
+
+    def test_redefinition_supersedes_a_waiting_binding(self) -> None:
+        session = ReplSession()
+        session.submit("let main = nosuch")
+        self.assertEqual(session.submit("let main = 1").message, "ok")
+        self.assertEqual(session.submit("main").message, "1 : Int")
+        self.assertNotIn("waiting", session.submit(":env").message)
+
+    def test_env_lists_waiting_bindings(self) -> None:
+        session = ReplSession()
+        session.submit('let main = greet("world")')
+        self.assertIn("main : ? (waiting for greet)", session.submit(":env").message)
+
+    def test_japanese_note(self) -> None:
+        session = ReplSession()
+        session.submit(":lang ja")
+        try:
+            result = session.submit('let main = greet("world")')
+            self.assertIn("`greet` はまだ定義されていません", result.message)
+        finally:
+            set_language("en")
+
+
 class ReplSpanTests(unittest.TestCase):
     """Expression input is parsed wrapped in `let __repl_value = `, but rendered unwrapped.
 
